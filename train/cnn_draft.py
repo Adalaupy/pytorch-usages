@@ -1,81 +1,112 @@
-import sys, os
-sys.path.insert(0, os.path.abspath('..'))
+import sys
+import os
 
-from models import Simple_Model
+sys.path.insert(0, os.path.abspath(".."))
+
+from models.cnn_model import cnn_model
 from utils import EarlyStopping
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
-
-from sklearn.model_selection import train_test_split
-from sklearn.datasets import load_diabetes
-from sklearn.preprocessing import StandardScaler
+from torch.utils.data import DataLoader
+import torchvision
+import torchvision.transforms as transforms
 
 
 # ----------------------------- Parameters -----------------------------
 batch_size = 64
-epochs = 100
-hidden_size = 128
-num_output = 1
-num_hidden_layer = 3
-dropout = 0.3
-patience = 10
+epochs = 10
+hidden_size = 16
+num_output = 10
+kernel_size = 3
+stride = 1
+padding = 1
+pool_size = 2
+channel_size = 1
+input_size = (28, 28)
+patience = 5
+learning_rate = 0.001
 
 
-# ----------------------------- Data -----------------------------
-X, y = load_diabetes(return_X_y=True)
-y = y.reshape(len(y), 1)
+# ----------------------------- Helper -----------------------------
+def get_mean_std(dataset, batch_size=256):
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
+    channel_sum = 0.0
+    channel_sum_sq = 0.0
+    num_batches = 0
+
+    for images, _ in loader:
+        channel_sum += images.mean(dim=(0, 2, 3))
+        channel_sum_sq += (images ** 2).mean(dim=(0, 2, 3))
+        num_batches += 1
+
+    mean = channel_sum / num_batches
+    std = (channel_sum_sq / num_batches - mean ** 2).sqrt()
+    return mean, std
+
+
+# ----------------------------- Load Data First -----------------------------
+train_dataset = torchvision.datasets.MNIST(
+    root="../data",
+    train=True,
+    download=True,
+    transform=transforms.ToTensor(),
 )
 
-X_scaler = StandardScaler()
-y_scaler = StandardScaler()
-
-X_train_scaled = X_scaler.fit_transform(X_train)
-X_test_scaled = X_scaler.transform(X_test)
-
-y_train_scaled = y_scaler.fit_transform(y_train)
-y_test_scaled = y_scaler.transform(y_test)
+test_dataset = torchvision.datasets.MNIST(
+    root="../data",
+    train=False,
+    download=True,
+    transform=transforms.ToTensor(),
+)
 
 
-# ----------------------------- Tensor Dataset -----------------------------
-X_train_tensor = torch.from_numpy(X_train_scaled).float()
-X_test_tensor = torch.from_numpy(X_test_scaled).float()
+# ----------------------------- Calculate Transform -----------------------------
+mean, std = get_mean_std(train_dataset)
+print("mean:", mean)
+print("std:", std)
 
-y_train_tensor = torch.from_numpy(y_train_scaled).float()
-y_test_tensor = torch.from_numpy(y_test_scaled).float()
+final_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean.tolist(), std.tolist()),
+])
 
-train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
+train_dataset.transform = final_transform
+test_dataset.transform = final_transform
 
+
+# ----------------------------- DataLoader -----------------------------
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 
-# ----------------------------- Model -----------------------------
+# ----------------------------- Prepare Model -----------------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model = Simple_Model(
-    input_size=X_train.shape[1],
+model = cnn_model(
+    channel_size=channel_size,
+    input_size=input_size,
     hidden_size=hidden_size,
     num_output=num_output,
-    num_hidden_layer=num_hidden_layer,
-    dropout=dropout,
-).to(device)
+    kernel_size=kernel_size,
+    stride=stride,
+    padding=padding,
+    pool_size=pool_size,
+)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-criterion = nn.MSELoss()
+model.to(device)
+
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+criterion = nn.CrossEntropyLoss()
 early_stopping = EarlyStopping(
     patience=patience,
-    path="../checkpoints/simple_checkpoint.pt"
+    path="../checkpoints/cnn_checkpoint.pt",
 )
 
 
-# ----------------------------- Training -----------------------------
-for ep in range(epochs):
+# ----------------------------- Train -----------------------------
+for epoch in range(epochs):
 
     model.train()
     train_loss = 0.0
@@ -87,6 +118,7 @@ for ep in range(epochs):
         optimizer.zero_grad()
         output = model(batch_x)
         loss = criterion(output, batch_y)
+
         loss.backward()
         optimizer.step()
 
@@ -96,40 +128,36 @@ for ep in range(epochs):
 
     model.eval()
     val_loss = 0.0
-    all_preds = []
-    all_actual = []
+    correct = 0
+    total = 0
 
     with torch.no_grad():
         for batch_x, batch_y in test_loader:
             batch_x = batch_x.to(device)
             batch_y = batch_y.to(device)
 
-            pred = model(batch_x)
-            loss = criterion(pred, batch_y)
+            output = model(batch_x)
+            loss = criterion(output, batch_y)
             val_loss += loss.item()
 
-            all_preds.append(pred)
-            all_actual.append(batch_y)
+            preds = output.argmax(dim=1)
+            correct += (preds == batch_y).sum().item()
+            total += batch_y.size(0)
 
     avg_val_loss = val_loss / len(test_loader)
-
-    all_preds = torch.cat(all_preds, dim=0)
-    all_actual = torch.cat(all_actual, dim=0)
-
-    ss_res = ((all_actual - all_preds) ** 2).sum()
-    ss_tot = ((all_actual - all_actual.mean()) ** 2).sum()
-    r2 = (1 - ss_res / ss_tot).item()
+    accuracy = correct / total
 
     print(
-        f"Epoch {ep+1:3d} | "
-        f"Train Loss: {avg_train_loss:.6f} | "
-        f"Val Loss: {avg_val_loss:.6f} | "
-        f"R2: {r2:.4f}"
+        f"Epoch {epoch + 1:3d} | "
+        f"Train Loss: {avg_train_loss:.4f} | "
+        f"Val Loss: {avg_val_loss:.4f} | "
+        f"Accuracy: {accuracy:.4f}"
     )
 
     early_stopping(avg_val_loss, model)
+
     if early_stopping.early_stop:
-        print("Early stopping triggered!")
+        print("Early stopping triggered! Training stopped.")
         break
 
 print("Training finished!")
