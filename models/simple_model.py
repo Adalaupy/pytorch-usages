@@ -17,7 +17,7 @@ import torch.nn.functional as F
 
 class Simple_Model(nn.Module):
     
-    def __init__(self, input_size : int, hidden_size : int, num_output : int, num_hidden_layer: int, dropout : float):        
+    def __init__(self, input_size : tuple, hidden_size : int, num_output : int, num_hidden_layer: int, dropout : float):        
 
         super().__init__()
 
