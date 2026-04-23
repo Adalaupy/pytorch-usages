@@ -18,7 +18,7 @@ if not isinstance(checkpoint, dict):
         "Please retrain and save checkpoint_data in training."
     )
 
-required_keys = {"model_state_dict", "model_config", "preprocess_config"}
+required_keys = {"model_state_dict", "model_config", "preprocess_config", "class_names"}
 missing_keys = required_keys - set(checkpoint.keys())
 if missing_keys:
     raise ValueError(
@@ -29,6 +29,7 @@ if missing_keys:
 model_state_dict = checkpoint["model_state_dict"]
 model_config = checkpoint["model_config"]
 preprocess_config = checkpoint["preprocess_config"]
+class_names = checkpoint["class_names"]
 
 model = CNN_Model(**model_config).to(device)
 transform = build_cnn_transform(preprocess_config)
@@ -40,7 +41,6 @@ model.eval()
 SUPPORTED_FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".webp"}
 
 img_folder = "../data/my_images"
-class_names = [str(i) for i in range(10)]
 
 image_files = [
     f for f in os.listdir(img_folder)
