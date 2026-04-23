@@ -1,5 +1,7 @@
 from PIL import Image
 import torchvision.transforms.functional as TF
+from torch.utils.data import DataLoader
+
 
 class ResizeKeepRatioPad:
     def __init__(self, target_size=(28, 28), fill=0):
@@ -27,3 +29,27 @@ class ResizeKeepRatioPad:
 
         return TF.pad(img, padding, fill=self.fill)
 
+
+
+
+
+
+# Function to calculate mean and standard deviation
+
+def get_mean_std(dataset, batch_size):
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    channel_sum = 0.0
+    channel_sum_sq = 0.0
+    num_batches = 0
+
+    for images, _ in loader:
+        
+        # images: [B, C, H, W]
+        channel_sum += images.mean(dim=(0, 2, 3))
+        channel_sum_sq += (images ** 2).mean(dim=(0, 2, 3))
+        num_batches += 1
+
+    mean = channel_sum / num_batches
+    std = (channel_sum_sq / num_batches - mean ** 2).sqrt()
+    
+    return mean, std

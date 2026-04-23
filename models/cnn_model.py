@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class cnn_model(nn.Module):
+class CNN_Model(nn.Module):
     
     def __init__(self, channel_size : int ,input_size : tuple , hidden_size : int , num_output : int , kernel_size : int , stride : int, padding : int , pool_size : int = 2):
         

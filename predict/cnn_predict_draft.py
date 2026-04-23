@@ -4,10 +4,11 @@ import torch
 from PIL import Image
 import torchvision.transforms as transforms
 
-from models.cnn_model import cnn_model
+from models.cnn_model import CNN_Model
+from utils import get_device
 
 # 1) Device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_device()
 
 # 2) Use SAME preprocessing as training
 # Replace with your printed mean/std from training
@@ -22,7 +23,7 @@ transform = transforms.Compose([
 ])
 
 # 3) Recreate model with same hyperparameters
-model = cnn_model(
+model = CNN_Model(
     channel_size=1,
     input_size=(28, 28),
     hidden_size=16,
