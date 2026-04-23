@@ -76,10 +76,6 @@ class CNNModel(nn.Module):
         return self.classifier(x)
     
 
-        
-
-
-
 
 To explain the features part:
 

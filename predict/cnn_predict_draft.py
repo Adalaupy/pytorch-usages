@@ -1,59 +1,66 @@
-
-
+import os
 import torch
 from PIL import Image
-import torchvision.transforms as transforms
 
 from models.cnn_model import CNN_Model
-from utils import get_device
+from utils import get_device, build_cnn_transform
 
 # 1) Device
 device = get_device()
 
-# 2) Use SAME preprocessing as training
-# Replace with your printed mean/std from training
-mean = [0.1307]
-std = [0.3081]
-
-transform = transforms.Compose([
-    transforms.Grayscale(num_output_channels=1),   # keep for MNIST-like grayscale
-    transforms.Resize((28, 28)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean, std),
-])
-
-# 3) Recreate model with same hyperparameters
-model = CNN_Model(
-    channel_size=1,
-    input_size=(28, 28),
-    hidden_size=16,
-    num_output=10,
-    kernel_size=3,
-    stride=1,
-    padding=1,
-    pool_size=2,
-).to(device)
-
-# 4) Load trained weights
+# 2) Load checkpoint and rebuild model/transform from saved metadata
 ckpt_path = "../checkpoints/cnn_checkpoint.pt"
-model.load_state_dict(torch.load(ckpt_path, map_location=device))
+checkpoint = torch.load(ckpt_path, map_location=device)
+
+if not isinstance(checkpoint, dict):
+    raise ValueError(
+        "Checkpoint must be a dict with model_state_dict, model_config, and preprocess_config. "
+        "Please retrain and save checkpoint_data in training."
+    )
+
+required_keys = {"model_state_dict", "model_config", "preprocess_config"}
+missing_keys = required_keys - set(checkpoint.keys())
+if missing_keys:
+    raise ValueError(
+        f"Checkpoint is missing required keys: {sorted(missing_keys)}. "
+        "Please retrain and save checkpoint_data in training."
+    )
+
+model_state_dict = checkpoint["model_state_dict"]
+model_config = checkpoint["model_config"]
+preprocess_config = checkpoint["preprocess_config"]
+
+model = CNN_Model(**model_config).to(device)
+transform = build_cnn_transform(preprocess_config)
+
+model.load_state_dict(model_state_dict)
 model.eval()
 
-# 5) Load one new image and predict
-img_path = "../data/my_test_image.png"
-img = Image.open(img_path)
+# 5) Load all images from a folder and predict
+SUPPORTED_FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".webp"}
 
-x = transform(img).unsqueeze(0).to(device)  # [1, C, H, W]
-
-with torch.no_grad():
-    logits = model(x)                        # [1, num_classes]
-    probs = torch.softmax(logits, dim=1)     # probabilities
-    pred_idx = probs.argmax(dim=1).item()
-    confidence = probs[0, pred_idx].item()
-
-print("Predicted class index:", pred_idx)
-print("Confidence:", confidence)
-
-
+img_folder = "../data/my_images"
 class_names = [str(i) for i in range(10)]
-print("Predicted label:", class_names[pred_idx])
+
+image_files = [
+    f for f in os.listdir(img_folder)
+    if os.path.splitext(f)[1].lower() in SUPPORTED_FORMATS
+]
+
+for filename in image_files:
+    img_path = os.path.join(img_folder, filename)
+
+    try:
+        img = Image.open(img_path)
+        x = transform(img).unsqueeze(0).to(device)  # [1, C, H, W]
+
+        with torch.no_grad():
+            logits = model(x)
+            probs = torch.softmax(logits, dim=1)
+            pred_idx = probs.argmax(dim=1).item()
+            confidence = probs[0, pred_idx].item()
+
+        print(f"{filename} -> label: {class_names[pred_idx]}, confidence: {confidence:.4f}")
+
+    except Exception as e:
+        print(f"{filename} -> skipped ({e})")
