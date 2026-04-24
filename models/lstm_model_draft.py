@@ -14,17 +14,7 @@ import torch.nn.functional as F
 class LSTM_Model(nn.Module):
     
     def __init__(self, input_size: int, hidden_size: int, num_output: int, num_layers: int = 1, dropout: float = 0.0, bidirectional: bool = False):
-        """
-        LSTM Model for sequence classification
-        
-        Args:
-            input_size: Number of input features at each time step
-            hidden_size: Number of hidden units in LSTM
-            num_output: Number of output classes
-            num_layers: Number of stacked LSTM layers
-            dropout: Dropout probability (only applied if num_layers > 1)
-            bidirectional: Whether to use bidirectional LSTM
-        """
+
         super().__init__()
         
         self.input_size = input_size
@@ -43,8 +33,11 @@ class LSTM_Model(nn.Module):
             batch_first=True
         )
         
+
+
         # Classifier head
         lstm_output_size = hidden_size * (2 if bidirectional else 1)
+
         self.classifier = nn.Linear(lstm_output_size, num_output)
         
         self.dropout = nn.Dropout(dropout)
@@ -73,3 +66,50 @@ class LSTM_Model(nn.Module):
         logits = self.classifier(last_output)
         
         return logits
+
+
+"""
+
+Notes:
+
+1. Dropout : Connect between each layer
+- num_layers=1: [LSTM] → No dropout (no layers to connect)
+- num_layers=2: [LSTM] → [dropout] → [LSTM] → dropout applied between them
+- num_layers=3: [LSTM] → [dropout] → [LSTM] → [dropout] → [LSTM]
+
+
+2. Bidirectional Sample cases
+- Unidirectional (only left to right): 
+    => Seq2Seq Translation (from left to right)
+    => Stock Price Prediction (only past data provided)
+- Bidirectional (both):
+    => Named Entity Recognition : identify people, organization, locations etc
+    => Sentiment Analysis : full context to identify -ve/+ve
+    => Speech recognition : better for offline
+
+    
+3. batch_first : Control input/output shape convention
+- Target for : "x = torch.randn(20, 32, 10)"
+- True  : [batch_size, seq_len, input_size]
+- False : [seq_len, batch_size, input_size]
+
+
+4. Classifier : map hidden features to classess
+
+
+
+Others:
+
+1. For Machine Translation (Seq2Seq), there are encoder and decoder
+- Encoder : read source and build meaning
+- Decoder : Use the meaning to generate sentense
+- Usage:
+    => Only Encoder : understand and score
+    => Only Decoder : rewrite email, decoder also can understand meaning
+    => Encoder + Decoder : translate, summarize, use when you need strong source to target mapping
+
+
+
+"""
+
+

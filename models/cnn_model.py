@@ -28,14 +28,17 @@ class CNN_Model(nn.Module):
 
         )
         
-        flat_dim = self._get_flatten_dim(input_shape=(channel_size , *input_size ))
+        flat_dim = self._get_flatten_dim(input_shape=(channel_size , * input_size ))
+        
         self.classifier = nn.Linear(flat_dim, num_output)
 
    
-    def _get_flatten_dim(self, input_shape=(1, 28, 28)):
+    def _get_flatten_dim(self, input_shape):
+        
         
         with torch.no_grad():
-            x = torch.zeros(1, *input_shape)
+        
+            x = torch.zeros(1, * input_shape)
             x = self.features(x)
             return x.flatten(1).shape[1]            
 
@@ -45,6 +48,7 @@ class CNN_Model(nn.Module):
         
         x = self.features(x)
         x = x.flatten(1)
+
         return self.classifier(x)
     
 
