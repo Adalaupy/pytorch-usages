@@ -4,6 +4,8 @@ import torchvision.transforms.functional as TF
 from torch.utils.data import DataLoader
 
 
+
+
 class ResizeKeepRatioPad:
     def __init__(self, target_size=(28, 28), fill=0):
         self.target_h, self.target_w = target_size
@@ -36,10 +38,63 @@ class ResizeKeepRatioPad:
 
 
 
+class Face_Detector:
+
+    def __init__(self, input_size):
+
+        from mtcnn.mtcnn import MTCNN
+        from PIL import Image
+        import numpy as np
+
+
+        self.np = np
+        self.detector = MTCNN()
+        self.Image = Image
+        self.input_size  = input_size
+
+
+
+    def __call__(self, Img):                 
+        
+        try:
+        
+            img_array = self.np.array(Img)
+
+            if img_array.dtype != self.np.uint8:
+                
+                img_array = (img_array * 255).astype('uint8')
+
+            faces = self.detector.detect_faces(img_array)
+
+            # Sort the face by face size
+            faces_sorted = sorted(faces, key=lambda x: x['box'][2], reverse=True)
+
+            face = [item for item in faces_sorted if item['box'][2] > self.input_size[0] and item['box'][3] > self.input_size[0] ][0]
+
+            f_x, f_y, f_width, f_height = face['box']
+
+
+            cropped_img = Img.crop((f_x, f_y, f_x + f_width, f_y + f_height))
+
+
+            return cropped_img
+            
+
+        except Exception as e:
+                    
+            # try:
+            #     from IPython.display import display
+            #     display(Img)
+            # except Exception:
+            #     Img.show()  # fallback outside notebooks
+            
+            
+            return Img
+                
+
 
 
 # Function to calculate mean and standard deviation
-
 def get_mean_std(dataset, batch_size=256):
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     channel_sum = 0.0
