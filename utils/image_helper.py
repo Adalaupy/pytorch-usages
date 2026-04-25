@@ -6,6 +6,36 @@ from torch.utils.data import DataLoader
 
 
 
+def build_augmentation_transform(
+    horizontal_flip=True,
+    rotation_degrees=15,
+    color_jitter=True,
+    random_grayscale_p=0.1,
+):
+    steps = []
+
+    if horizontal_flip:
+        steps.append(transforms.RandomHorizontalFlip(p=0.5))
+
+    if rotation_degrees:
+        steps.append(transforms.RandomRotation(degrees=rotation_degrees))
+
+    if color_jitter:
+        steps.append(transforms.ColorJitter(
+            brightness=0.3,
+            contrast=0.3,
+            saturation=0.2,
+            hue=0.05,
+        ))
+
+    if random_grayscale_p:
+        steps.append(transforms.RandomGrayscale(p=random_grayscale_p))
+
+    return transforms.Compose(steps)
+
+
+
+
 class ResizeKeepRatioPad:
     def __init__(self, target_size=(28, 28), fill=0):
         self.target_h, self.target_w = target_size
