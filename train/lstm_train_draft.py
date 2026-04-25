@@ -165,7 +165,8 @@ for epoch in range(epochs):
 
 
 # ==================== Load Saved Checkpoint (Optional Check) ====================
-checkpoint = torch.load(f"checkpoints/{model_output_filename}.pt", map_location=device)
+with open(f"checkpoints/{model_output_filename}.pt", 'rb') as f:
+    checkpoint = torch.load(f, map_location=device)
 
 print("Saved keys:", checkpoint.keys())
 print("Saved class_names:", checkpoint["class_names"])

@@ -1,0 +1,13 @@
+# Core deep-learning stack
+torch
+torchvision
+Pillow
+
+# Notebook examples and tabular preprocessing
+scikit-learn
+ipykernel
+
+# Face detection pipeline used by cnn_train.ipynb when is_face=True
+mtcnn
+tensorflow
+numpy

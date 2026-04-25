@@ -1,4 +1,11 @@
+import os
 import torch
+
+
+def ensure_checkpoint_dir(path):
+    folder = os.path.dirname(path)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
 
 
 class EarlyStopping:
@@ -27,10 +34,15 @@ class EarlyStopping:
             self.counter = 0
 
     def save_checkpoint(self, model):
+        ensure_checkpoint_dir(self.path)
+
         if self.checkpoint_data is None:
-            torch.save(model.state_dict(), self.path)
+            with open(self.path, 'wb') as f:
+                torch.save(model.state_dict(), f)
             return
 
         payload = {"model_state_dict": model.state_dict()}
         payload.update(self.checkpoint_data)
-        torch.save(payload, self.path)
+        
+        with open(self.path, 'wb') as f:
+            torch.save(payload, f)
