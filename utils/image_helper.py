@@ -1,4 +1,6 @@
 from PIL import Image
+import contextlib
+import io
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
 from torch.utils.data import DataLoader
@@ -72,13 +74,17 @@ class Face_Detector:
 
     def __init__(self, input_size):
 
-        from mtcnn.mtcnn import MTCNN
+        # MTCNN may emit non-fatal lz4 stderr noise on Python 3.13.
+        # Keep initialization output clean while preserving runtime behavior.
+        with contextlib.redirect_stderr(io.StringIO()):
+            from mtcnn.mtcnn import MTCNN
         from PIL import Image
         import numpy as np
 
 
         self.np = np
-        self.detector = MTCNN()
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.detector = MTCNN()
         self.Image = Image
         self.input_size  = input_size
 
