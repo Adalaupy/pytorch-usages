@@ -1,4 +1,4 @@
-from utils.callback import EarlyStopping
+from utils.training import EarlyStopping,EpochTrainer
 from utils.image_helper import (
 	ResizeKeepRatioPad,
     Face_Detector,

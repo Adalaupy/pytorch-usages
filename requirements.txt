@@ -2,12 +2,14 @@
 torch
 torchvision
 Pillow
+numpy
 
 # Notebook examples and tabular preprocessing
 scikit-learn
+pandas
+yfinance
 ipykernel
 
 # Face detection pipeline used by cnn_train.ipynb when is_face=True
 mtcnn
 tensorflow
-numpy
