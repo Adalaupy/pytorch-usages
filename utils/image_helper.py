@@ -6,7 +6,9 @@ import torchvision.transforms.functional as TF
 from torch.utils.data import DataLoader
 
 
-
+# ================================================================================================
+# Build a reusable train-time augmentation pipeline for image datasets
+# ================================================================================================
 
 def build_augmentation_transform(
     horizontal_flip=True,
@@ -36,7 +38,9 @@ def build_augmentation_transform(
     return transforms.Compose(steps)
 
 
-
+# ================================================================================================
+# Resize image to target size while preserving aspect ratio via padding
+# ================================================================================================
 
 class ResizeKeepRatioPad:
     def __init__(self, target_size=(28, 28), fill=0):
@@ -70,8 +74,11 @@ class ResizeKeepRatioPad:
 
 
 
-class Face_Detector:
+# ================================================================================================
+# Detect and crop the largest face in an image; fallback to original image
+# ================================================================================================
 
+class Face_Detector:
     def __init__(self, input_size):
 
         # MTCNN may emit non-fatal lz4 stderr noise on Python 3.13.
@@ -128,10 +135,12 @@ class Face_Detector:
             return Img
                 
 
+# ================================================================================================
+# Estimate per-channel mean/std from a dataset for normalization
+# ================================================================================================
 
-
-# Function to calculate mean and standard deviation
 def get_mean_std(dataset, batch_size=256):
+    
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     channel_sum = 0.0
     channel_sum_sq = 0.0
@@ -150,6 +159,10 @@ def get_mean_std(dataset, batch_size=256):
     return mean, std
 
 
+# ================================================================================================
+# Pack preprocessing settings into a checkpoint-friendly dictionary
+# ================================================================================================
+
 def create_preprocess_config(
     input_size,
     mean,
@@ -167,6 +180,10 @@ def create_preprocess_config(
         "pad_fill": int(pad_fill),
     }
 
+
+# ================================================================================================
+# Recreate CNN preprocessing transform from saved configuration
+# ================================================================================================
 
 def build_cnn_transform(preprocess_config):
     input_size = tuple(preprocess_config["input_size"])

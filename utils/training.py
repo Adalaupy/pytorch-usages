@@ -2,14 +2,50 @@ import os
 import torch
 import numpy as np
 
+
+
+# ================================================================================================
+# Convert ordered samples into fixed-length sequences for time-series models
+# ================================================================================================
+
+def build_seq(X, y = None, seq_len = 1):
+
+    X_seq, y_seq = [], []
+
+    for i in range(len(X) - seq_len):
+
+        X_seq.append( X[i : i + seq_len] )
+
+        if y_seq:
+            
+            y_seq.append( y[i + seq_len] )
+
+
+    X_seq = np.array(X_seq)
+    y_seq = np.array(y_seq)
+
+    if y_seq:
+        
+        return X_seq, y_seq
+
+    else:
+        
+        return X_seq
+    
+# ================================================================================================
+# Create checkpoint directory if it does not already exist
+# ================================================================================================
 def ensure_checkpoint_dir(path):
     folder = os.path.dirname(path)
     if folder:
         os.makedirs(folder, exist_ok=True)
 
 
+# ================================================================================================
+# Stop training on stagnant validation loss and save best checkpoint
+# ================================================================================================
 class EarlyStopping:
-    
+
     def __init__(self, patience=5, path='checkpoints/simple_checkpoint.pt', checkpoint_data=None):
         self.patience = patience
         self.path = path
@@ -18,9 +54,15 @@ class EarlyStopping:
         self.best_loss = None
         self.early_stop = False
 
+    # --------------------------------------------------------------------------------
+    # Attach metadata payload that will be stored with model weights
+    # --------------------------------------------------------------------------------
     def set_checkpoint_data(self, checkpoint_data):
         self.checkpoint_data = checkpoint_data
 
+    # --------------------------------------------------------------------------------
+    # Update early-stopping state for current epoch validation loss
+    # --------------------------------------------------------------------------------
     def __call__(self, val_loss, model):
         if self.best_loss is None:
             self.best_loss = val_loss
@@ -34,8 +76,11 @@ class EarlyStopping:
             self.save_checkpoint(model)
             self.counter = 0
 
+    # --------------------------------------------------------------------------------
+    # Persist model weights, plus optional metadata, to checkpoint file
+    # --------------------------------------------------------------------------------
     def save_checkpoint(self, model):
-        
+
         ensure_checkpoint_dir(self.path)
 
         if self.checkpoint_data is None:
@@ -53,11 +98,11 @@ class EarlyStopping:
 
 
 
-
-
-
+# ================================================================================================
+# Run one train/validation epoch pair and report selected metrics
+# ================================================================================================
 class EpochTrainer:
-    
+
     def __init__(self, model, early_stopping, device, optimizer, criterion, eval_method ):
         
         self.model = model
@@ -68,8 +113,11 @@ class EpochTrainer:
         self.eval = eval_method        
 
 
+    # --------------------------------------------------------------------------------
+    # Compute validation summary metrics from accumulated predictions
+    # --------------------------------------------------------------------------------
+    
     def result_evaluation(self, eval_method, val_loss, all_predict, all_actual  ):
-
         avg_val_loss = val_loss / len(all_predict)
 
         if eval_method == 'R2':
@@ -112,11 +160,12 @@ class EpochTrainer:
         return avg_val_loss , result
     
 
-
-
+    # --------------------------------------------------------------------------------
+    # Execute one epoch of optimization and one epoch of validation
+    # --------------------------------------------------------------------------------
 
     def __call__(self, train_loader, test_loader):
-        
+
 
         self.train_loss = 0.0
         self.val_loss = 0.0
