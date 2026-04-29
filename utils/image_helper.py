@@ -39,6 +39,38 @@ def build_augmentation_transform(
 
 
 # ================================================================================================
+# Recreate CNN preprocessing transform from saved configuration
+# ================================================================================================
+
+def build_cnn_transform(preprocess_config):
+    input_size = tuple(preprocess_config["input_size"])
+    mean = preprocess_config["mean"]
+    std = preprocess_config["std"]
+    channel_size = preprocess_config.get("channel_size", 1)
+    keep_ratio_pad = preprocess_config.get("keep_ratio_pad", True)
+    pad_fill = preprocess_config.get("pad_fill", 0)
+
+    transform_steps = []
+
+    if channel_size == 1:
+        transform_steps.append(transforms.Grayscale(num_output_channels=1))
+
+    if keep_ratio_pad:
+        transform_steps.append(ResizeKeepRatioPad(input_size, fill=pad_fill))
+    else:
+        transform_steps.append(transforms.Resize(input_size))
+
+    transform_steps.extend(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ]
+    )
+
+    return transforms.Compose(transform_steps)
+
+
+# ================================================================================================
 # Resize image to target size while preserving aspect ratio via padding
 # ================================================================================================
 
@@ -70,8 +102,6 @@ class ResizeKeepRatioPad:
         )
 
         return TF.pad(img, padding, fill=self.fill)
-
-
 
 
 # ================================================================================================
@@ -181,33 +211,3 @@ def create_preprocess_config(
     }
 
 
-# ================================================================================================
-# Recreate CNN preprocessing transform from saved configuration
-# ================================================================================================
-
-def build_cnn_transform(preprocess_config):
-    input_size = tuple(preprocess_config["input_size"])
-    mean = preprocess_config["mean"]
-    std = preprocess_config["std"]
-    channel_size = preprocess_config.get("channel_size", 1)
-    keep_ratio_pad = preprocess_config.get("keep_ratio_pad", True)
-    pad_fill = preprocess_config.get("pad_fill", 0)
-
-    transform_steps = []
-
-    if channel_size == 1:
-        transform_steps.append(transforms.Grayscale(num_output_channels=1))
-
-    if keep_ratio_pad:
-        transform_steps.append(ResizeKeepRatioPad(input_size, fill=pad_fill))
-    else:
-        transform_steps.append(transforms.Resize(input_size))
-
-    transform_steps.extend(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std),
-        ]
-    )
-
-    return transforms.Compose(transform_steps)
