@@ -1,8 +1,10 @@
 from datetime import timedelta,date
 import holidays
 import pandas as pd
-
 import yfinance as yf
+from scipy.signal import find_peaks
+import matplotlib.pyplot as plt
+
 # ================================================================================================
 # Calculate next T + N business days
 # ================================================================================================
@@ -32,7 +34,7 @@ def plus_bus_day(date, T_plus, country_code = 'US' ):
 # Download stock history from yFinance
 # ================================================================================================
 
-def Get_yf_data( ticker, start, end = date.today().isoformat()):
+def get_yf_data( ticker, start, end = date.today().isoformat()):
     
     df = yf.download(ticker , start = start , end = end)
     data = df.dropna().copy()
@@ -49,3 +51,48 @@ def Get_yf_data( ticker, start, end = date.today().isoformat()):
 
 
     return data
+
+
+# ================================================================================================
+# Plot stock Price and the Peak + Trough 
+# ================================================================================================
+
+
+def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence, data_len=None):
+    
+    colors = ['blue', 'red', 'yellow', 'purple']
+    
+    if data_len is not None:
+        df_plot = df[-data_len:].reset_index(drop=True)
+    else:
+        df_plot = df
+
+
+    x = df_plot[X_Col]
+    turning_col = df_plot[turn_col]
+
+    peak_idx, _ = find_peaks( turning_col, prominence= prominence)
+    trough_idx,_ = find_peaks( -turning_col, prominence= prominence)
+
+    plt.figure(figsize=(15, 8))
+
+
+    for id, y in enumerate(Y_cols):
+        
+        plt.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.6 , linewidth = 1.2 )
+
+    
+    plt.scatter(df_plot.loc[peak_idx, "Date"], df_plot.loc[peak_idx, "Actual"], color="orange", label="Actual Peak", s=50)
+    plt.scatter(df_plot.loc[trough_idx, "Date"], df_plot.loc[trough_idx, "Actual"], color="green", label="Actual Trough", s=50)
+
+
+    for i in peak_idx:
+        plt.axvline(df_plot.loc[i, "Date"], color="orange", alpha=0.3, linewidth=1.2)
+    for i in trough_idx:
+        plt.axvline(df_plot.loc[i, "Date"], color="green", alpha=0.3, linewidth=1.2)
+
+
+    plt.legend()
+    # plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show()
