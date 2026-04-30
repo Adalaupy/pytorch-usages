@@ -51,9 +51,6 @@ Others:
     => Only Decoder : rewrite email, decoder also can understand meaning
     => Encoder + Decoder : translate, summarize, use when you need strong source to target mapping
 
-
-    
-
 """
 
 

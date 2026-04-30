@@ -38,6 +38,7 @@ def build_seq(seq_len , X , steps_ahead = 1, Id_cols = None, y = None, allow_mis
             y_seq.append( y_target )
 
             if Id_cols is not None:
+                
                 y_id.append(Id_cols[target_idx] if target_idx < len(Id_cols) else None)
 
 
@@ -136,6 +137,7 @@ class EarlyStopping:
 # ================================================================================================
 # Run one train/validation epoch pair and report selected metrics
 # ================================================================================================
+
 class EpochTrainer:
 
     def __init__(self, model, early_stopping, device, optimizer, criterion=None, eval_method='RMSE' ):
@@ -150,7 +152,9 @@ class EpochTrainer:
     # --------------------------------------------------------------------------------
     # Update loss function for scenarios that need different objectives
     # --------------------------------------------------------------------------------
+    
     def set_criterion(self, criterion):
+        
         self.criterion = criterion
 
 

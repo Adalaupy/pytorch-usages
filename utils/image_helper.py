@@ -8,6 +8,10 @@ from torch.utils.data import DataLoader
 
 # ================================================================================================
 # Build a reusable train-time augmentation pipeline for image datasets
+# - Defines random transform rules (probabilities/ranges), not fixed outputs.
+# - Each sample call re-applies transforms to the original image, so results vary per batch/epoch.
+# - Increases training diversity without creating duplicated files on disk.
+# - Use only in training; keep validation/test preprocessing deterministic.
 # ================================================================================================
 
 def build_augmentation_transform(
@@ -43,6 +47,7 @@ def build_augmentation_transform(
 # ================================================================================================
 
 def build_cnn_transform(preprocess_config):
+    
     input_size = tuple(preprocess_config["input_size"])
     mean = preprocess_config["mean"]
     std = preprocess_config["std"]
