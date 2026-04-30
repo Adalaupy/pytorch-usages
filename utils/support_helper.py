@@ -26,7 +26,6 @@ def plus_bus_day(date, T_plus, country_code = 'US' ):
             
             day_added += 1
 
-    
 
     return current_date.date()
 
@@ -60,7 +59,7 @@ def get_yf_data( ticker, start, end = date.today().isoformat()):
 
 def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence, data_len=None):
     
-    colors = ['blue', 'red', 'yellow', 'purple']
+    colors = ['blue', 'orange', 'yellow', 'purple']
     
     if data_len is not None:
         df_plot = df[-data_len:].reset_index(drop=True)
@@ -77,22 +76,20 @@ def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence, data_len=None):
     plt.figure(figsize=(15, 8))
 
 
-    for id, y in enumerate(Y_cols):
-        
-        plt.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.6 , linewidth = 1.2 )
+    for id, y in enumerate(Y_cols):        
+        plt.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.1 , linewidth = 1.6 )
 
     
-    plt.scatter(df_plot.loc[peak_idx, "Date"], df_plot.loc[peak_idx, "Actual"], color="orange", label="Actual Peak", s=50)
-    plt.scatter(df_plot.loc[trough_idx, "Date"], df_plot.loc[trough_idx, "Actual"], color="green", label="Actual Trough", s=50)
+    plt.scatter(df_plot.loc[peak_idx, "Date"], df_plot.loc[peak_idx, "Actual"], color="red", label="Actual Peak", s=40)
+    plt.scatter(df_plot.loc[trough_idx, "Date"], df_plot.loc[trough_idx, "Actual"], color="green", label="Actual Trough", s=40)
 
 
     for i in peak_idx:
-        plt.axvline(df_plot.loc[i, "Date"], color="orange", alpha=0.3, linewidth=1.2)
+        plt.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="red", alpha=0.5, linewidth=1.1)
     for i in trough_idx:
-        plt.axvline(df_plot.loc[i, "Date"], color="green", alpha=0.3, linewidth=1.2)
+        plt.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="green", alpha=0.5, linewidth=1.1)
 
 
     plt.legend()
-    # plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.show()

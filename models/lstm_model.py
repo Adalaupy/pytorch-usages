@@ -54,13 +54,25 @@ Others:
 """
 
 
+from typing import Optional
+
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class LSTM_Model(nn.Module):
     
-    def __init__(self, input_size: int, hidden_size: int, num_output: int, num_layers: int = 1, dropout: float = 0.0, bidirectional: bool = False):
+    def __init__(
+        self,
+        input_size: Optional[int],
+        hidden_size: int,
+        num_output: int,
+        num_layers: int = 1,
+        dropout: float = 0.0,
+        bidirectional: bool = False,
+        vocab_size: Optional[int] = None,
+        embedding_dim: Optional[int] = None,
+        padding_idx: int = 0,
+    ):
 
         super().__init__()
         
@@ -70,9 +82,31 @@ class LSTM_Model(nn.Module):
         self.num_layers = num_layers
         self.bidirectional = bidirectional
         
+        self.vocab_size = vocab_size
+        self.embedding_dim = embedding_dim
+        self.padding_idx = padding_idx
+
+        # General-purpose input adapter:
+        # - numeric mode: feed float features directly
+        # - text mode: map token ids to dense vectors with embedding
+        self.use_embedding = vocab_size is not None and embedding_dim is not None
+
+        if self.use_embedding:
+            self.embedding = nn.Embedding(
+                num_embeddings=vocab_size,
+                embedding_dim=embedding_dim,
+                padding_idx=padding_idx,
+            )
+            lstm_input_size = embedding_dim
+        else:
+            if input_size is None:
+                raise ValueError("input_size must be provided in numeric mode.")
+            self.embedding = None
+            lstm_input_size = input_size
+        
         # LSTM layers
         self.lstm = nn.LSTM(
-            input_size=input_size,
+            input_size=lstm_input_size,
             hidden_size=hidden_size,
             num_layers=num_layers,
             dropout=dropout if num_layers > 1 else 0.0,
@@ -95,11 +129,16 @@ class LSTM_Model(nn.Module):
         Forward pass
         
         Args:
-            x: Input tensor of shape (batch_size, seq_length, input_size)
+            x:
+                - numeric mode: (batch_size, seq_length, input_size)
+                - text mode: (batch_size, seq_length) token ids
         
         Returns:
             logits: Output tensor of shape (batch_size, num_output)
         """
+        if self.use_embedding:
+            x = self.embedding(x.long())
+
         # LSTM forward pass
         # lstm_output shape: (batch_size, seq_length, hidden_size * num_directions)
         lstm_output, (hidden, cell) = self.lstm(x)
