@@ -197,7 +197,6 @@ class EpochTrainer:
             result = {"Accuracy" : accuracy}
 
 
-
         elif eval_method == 'RMSE':
             
             rmse = np.sqrt(avg_val_loss)            

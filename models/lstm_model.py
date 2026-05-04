@@ -81,7 +81,7 @@ class LSTM_Model(nn.Module):
         self.num_output = num_output
         self.num_layers = num_layers
         self.bidirectional = bidirectional
-        
+
         self.vocab_size = vocab_size
         self.embedding_dim = embedding_dim
         self.padding_idx = padding_idx
@@ -124,7 +124,7 @@ class LSTM_Model(nn.Module):
         self.dropout = nn.Dropout(dropout)
     
     
-    def forward(self, x):
+    def forward(self, x, mask=None):
         """
         Forward pass
         
@@ -132,23 +132,39 @@ class LSTM_Model(nn.Module):
             x:
                 - numeric mode: (batch_size, seq_length, input_size)
                 - text mode: (batch_size, seq_length) token ids
+            mask: (batch_size, seq_length) boolean mask where True means valid token, False means padding
+                  If None, assumes all positions are valid (for backward compatibility)
         
         Returns:
             logits: Output tensor of shape (batch_size, num_output)
         """
+        # ------------------------------------------------------------------------
+        # Forward flow (text mode): token ids -> embedding -> LSTM -> masked mean
+        # pooling over non-padding tokens -> dropout -> classifier.
+        # If mask is not provided, it is auto-built from padding_idx.
+        # Forward flow (numeric mode): features -> LSTM -> last timestep output ->
+        # dropout -> classifier.
+        # ------------------------------------------------------------------------
         if self.use_embedding:
-            x = self.embedding(x.long())
+            x_ids = x.long()
+            x = self.embedding(x_ids)
 
-        # LSTM forward pass
-        # lstm_output shape: (batch_size, seq_length, hidden_size * num_directions)
+            if mask is None:
+                mask = (x_ids != self.padding_idx)
+
         lstm_output, (hidden, cell) = self.lstm(x)
-        
-        # Take the last time step output for classification
-        last_output = lstm_output[:, -1, :]  # (batch_size, hidden_size * num_directions)
+
+        if mask is not None:
+            mask_expanded = mask.unsqueeze(-1)
+            masked_output = lstm_output * mask_expanded
+            sum_output = masked_output.sum(dim=1)
+            seq_lengths = mask.sum(dim=1, keepdim=True).clamp(min=1)
+            last_output = sum_output / seq_lengths
+        else:
+            last_output = lstm_output[:, -1, :]
         
         last_output = self.dropout(last_output)
         
-        # Classification layer
         logits = self.classifier(last_output)
         
         return logits
