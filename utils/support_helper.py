@@ -5,6 +5,8 @@ import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 
+
+
 # ================================================================================================
 # Calculate next T + N business days
 # ================================================================================================
@@ -55,7 +57,6 @@ def get_yf_data( ticker, start, end = date.today().isoformat()):
 # ================================================================================================
 # Plot stock Price and the Peak + Trough 
 # ================================================================================================
-
 
 def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence, data_len=None):
     
