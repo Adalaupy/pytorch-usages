@@ -161,10 +161,7 @@ def apply_negation_concat(sentence: str, neg_map: dict) -> str:
 grammer = grammer_handler()
 
 def normalize_grammar(sentence: str) -> str:
-    """
-    Simple lemmatizer version (no POS tagging).
-    Keep phrase/negation tokens with "_" unchanged.
-    """
+
     tokens = str(sentence).split()
     result = []
 
@@ -188,17 +185,19 @@ def normalize_grammar(sentence: str) -> str:
 
 def NLP_data_cleaning(sentense: str):
     
-    # Step 1: Lower Case
+    # Step 1: Lower Case + replace "-" to "_"
     cleaned_sentense = sentense.lower()
-    
+    cleaned_sentense = cleaned_sentense.replace('-','_')
 
     # Step 2: Remove unnecessary text
     cleaned_sentense = remove_unused_from_text( cleaned_sentense )
     
-    # Step 2.5: Remove punctuation marks ".", ",", "!"
+    # Step 2.1: Remove punctuation marks ".", ",", "!"
     cleaned_sentense = re.sub(r"[.,!]", " ", cleaned_sentense)
     cleaned_sentense = re.sub(r"\s+", " ", cleaned_sentense).strip()
 
+    # Step 2.2:  Replace from "'s" to '_s'
+    cleaned_sentense = re.sub(r"(\s+)?'s", "_s", cleaned_sentense).strip()
 
     # Step 3: Concat Negative word
     cleaned_sentense = apply_negation_concat( cleaned_sentense, NEGATION_PREFIX_MAP)
@@ -209,14 +208,11 @@ def NLP_data_cleaning(sentense: str):
     # Step 5: Convert abbreviation to words
     cleaned_sentense = apply_abbreviation_map(cleaned_sentense , abbrev_map)
 
-
     # Step 6: Stemming/Lemmatization
     cleaned_sentense = normalize_grammar(cleaned_sentense)
 
 
     return cleaned_sentense
-
-
 
 
 # ================================================================================================
@@ -240,9 +236,8 @@ def tokenize(text: str):
 
     text_list = []
     
-    for item in text.split():
-        
-        
+    for item in text.split():        
+
         if item not in stop_words and len(item)> 1 and not is_number(item):
             
             text_list.append(item)
