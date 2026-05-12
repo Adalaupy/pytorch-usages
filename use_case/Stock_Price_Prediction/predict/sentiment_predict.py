@@ -1,7 +1,3 @@
-import sys, os
-sys.path.insert(0, os.path.abspath('../..'))
-
-import sys
 from pathlib import Path
 
 import torch
@@ -15,7 +11,7 @@ from utils import get_device,encode_text,NLP_data_cleaning
 # Parameters
 # ================================================================================================
 
-checkpoint_path = '../../checkpoints/sentiment_checkpoint.pt'
+checkpoint_path = '../../../checkpoints/sentiment_checkpoint.pt'
 is_print = True
 
 # ================================================================================================
@@ -140,6 +136,7 @@ def main_sentiment_predict(texts, actual):
     
     result = predict_sentiment( texts , processed_X )
 
+    predicts_list = [pred['pred_id'] for pred in result]
     
     for item in result:
 
@@ -178,14 +175,13 @@ def main_sentiment_predict(texts, actual):
 
                 print('\n')
 
-    return result,correct,incorrect
+    return predicts_list,result,correct,incorrect
 
 
 
 # ================================================================================================
 # Main
 # ================================================================================================
-
 
 
 def main( text_list , actual = None ):
@@ -206,6 +202,6 @@ def main( text_list , actual = None ):
     
     model = rebuild_model()
 
-    result, correct, incorrect = main_sentiment_predict(text_list, actual)
+    predicts_list,result, correct, incorrect = main_sentiment_predict(text_list, actual)
 
-    return result, correct,incorrect
+    return predicts_list,result, correct,incorrect

@@ -1,0 +1,1 @@
+from .sentiment_predict import main as sentiment_predict

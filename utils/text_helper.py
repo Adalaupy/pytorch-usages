@@ -1,7 +1,3 @@
-
-import sys, os
-sys.path.insert(0, os.path.abspath('..'))
-
 import re
 from use_case.Stock_Price_Prediction.constant.financial_terms import financial_terms
 from use_case.Stock_Price_Prediction.constant.negative_words import NEGATION_PREFIX_MAP

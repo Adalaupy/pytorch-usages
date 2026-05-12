@@ -39,6 +39,7 @@ myenv/
 .venv/
 venv/
 env/
+.env
 
 # Jupyter
 .ipynb_checkpoints/
@@ -65,5 +66,7 @@ Thumbs.db
 
 # Data
 data
-
 test*
+checking*
+news.txt
+

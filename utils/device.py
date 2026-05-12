@@ -1,4 +1,4 @@
-import torch
+import torch    
 
 
 # ================================================================================================
@@ -13,3 +13,4 @@ def get_device(prefer_mps: bool = False) -> torch.device:
         return torch.device("mps")
 
     return torch.device("cpu")
+
