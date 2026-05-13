@@ -1,5 +1,7 @@
 # PyTorch Usages
 
+> **Work in Progress** — This project is still actively being developed. Content, models, and use cases are subject to change.
+
 ## Purpose
 
 This project aims to build a foundation for experimenting with different neural network models using PyTorch. It serves as a learning and reference base for model building, training, and applying models to real-world use cases.
