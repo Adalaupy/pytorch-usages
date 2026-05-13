@@ -12,7 +12,7 @@ from utils import get_device,encode_text,NLP_data_cleaning
 # ================================================================================================
 
 checkpoint_path = '../../../checkpoints/sentiment_checkpoint.pt'
-is_print = True
+is_print = False
 
 # ================================================================================================
 # Get back trained model, device
@@ -34,7 +34,7 @@ def get_trained_model(path):
             "Could not find sentiment checkpoint. Tried: "
         )
 
-    print(f"Using checkpoint: {checkpoint_path}")
+    
 
 
     device = get_device()
@@ -127,7 +127,7 @@ def predict_sentiment( texts, X_tensor ):
 # Main function to process and predict sentiment of the input list of sentense
 # ================================================================================================
 
-def main_sentiment_predict(texts, actual):
+def handle_sentiment(texts, actual):
     
     correct = 0
     incorrect = 0
@@ -140,7 +140,6 @@ def main_sentiment_predict(texts, actual):
     
     for item in result:
 
-        text = item['text']
         predict = item['pred_label']
 
         if actual is not None:
@@ -158,7 +157,7 @@ def main_sentiment_predict(texts, actual):
             compare = ''
 
             
-        if compare != 'Matched !!':
+        if compare != 'Matched !!' or compare == '':
             
             result_item = item.copy()
             result_item = {'Actual': actual, **{k: v for k, v in result_item.items() if k != 'Acutal'}}
@@ -202,6 +201,6 @@ def main( text_list , actual = None ):
     
     model = rebuild_model()
 
-    predicts_list,result, correct, incorrect = main_sentiment_predict(text_list, actual)
+    predicts_list, result, correct, incorrect = handle_sentiment(text_list, actual)
 
-    return predicts_list,result, correct,incorrect
+    return predicts_list,label_map,result, correct,incorrect
