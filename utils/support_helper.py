@@ -44,11 +44,11 @@ def get_yf_data( ticker, start, end = date.today().isoformat()):
     data.columns = ['Date', 'Close', 'High', 'Low', "Open", "Volume"]
 
 
-    for col in data.columns:
+    # for col in data.columns:
 
-        if pd.api.types.is_datetime64_any_dtype(data[col]):
+    #     if pd.api.types.is_datetime64_any_dtype(data[col]):
 
-            data[col] = data[col].dt.date
+    #         data[col] = data[col].dt.date
 
 
     return data

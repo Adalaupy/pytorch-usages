@@ -107,8 +107,6 @@ def get_news_list( API_list ):
     return news_list
 
 
-
-
 # ================================================================================================
 # Function to save API result to .txt file
 # ================================================================================================
@@ -193,7 +191,7 @@ def data_organizig( data, labels, parameters ):
 
 
     # Get full columns List to ensure table schema consistency
-    t_List = [item['topic'] for item in parameters]
+    t_List = parameters['topics']
     p_List = [v for k,v in labels.items()]
     full_column_list = [f"{t}_{p}" for t in t_List for p in p_List]
 
@@ -206,7 +204,7 @@ def data_organizig( data, labels, parameters ):
     pt["date"] = pd.to_datetime(pt["date"], errors="coerce")
 
 
-    return pt
+    return df, pt
 
 
 # ================================================================================================
@@ -214,9 +212,7 @@ def data_organizig( data, labels, parameters ):
 # ================================================================================================
 
 def print_row_cnt(df : pd.DataFrame, gpby_cols: list):
-    
-    # [df['topic'], df["date"].dt.to_period("M")]
-    
+
     df_cnt = (
             df.dropna(subset=['date'])
             .groupby( gpby_cols )
@@ -232,19 +228,20 @@ def print_row_cnt(df : pd.DataFrame, gpby_cols: list):
 # 1.0: Get Data regularly
 # ================================================================================================
 
-def main_get_alphavantage():
+def main_get_alphavantage( parameters_setup = parameters_setup):
     
 
     # 1. Get parameter URL
     API_param_list = get_api_parameters(API_Key_list[0], parameters_setup)
     
+
     # 2. Get News from API
     news_list = get_news_list( API_param_list )
 
 
     # 3. Save to txt
     file_name = f'news_{date_from}_{date_to}.txt'
-    file_path = f"data/{file_name}"
+    file_path = f"data/alpha_vantage/{file_name}"
     save_data(file_path, news_list)
 
 
@@ -253,24 +250,29 @@ def main_get_alphavantage():
 
 
     # 5. Organize data
-    df = data_organizig( predict_result_list, label_map, parameters_setup )
+    df, pt = data_organizig( predict_result_list, label_map, parameters_setup )
 
 
-    return df
+    # Step 6: Check Data count
+    gpby_cols = [df['topic'], df["date"].dt.to_period("M")]
+    print_row_cnt(df, gpby_cols)
+
+
+
+    return pt
+
 
 # ================================================================================================
 # 2.0: Call API by batch due to API limitation
 # ================================================================================================
 
-def batch_api():
-    
+def main_batch_api(ticker = "VOO" , year = "2025"):    
     
     def get_batch_param( topic_list):
         
         batch_item_list = [] 
-        year   = 2025
         count = 1
-        ticker = "VOO"
+
 
         # For each month
         for m in range(12):
@@ -293,28 +295,42 @@ def batch_api():
 
                 file_name = f'news_{year}{str(from_month).zfill(2)}_{year}{str(to_month).zfill(2)}{str(to_day).zfill(2)}_{topic}.txt'
 
-
                 batch_item_list.append( ( file_name,  url ,topic) )
 
+                count += 1
 
         return batch_item_list
     
 
 
-    def handle_batch( batch_item ):
+    def handle_batch( batch_item ,fail_cnt):
         
-        file_name = f'data/{batch_item[0]}'
+        file_name = f'data/alpha_vantage/{batch_item[0]}'
         url = batch_item[1]
         topic = batch_item[2]
         isExist = Path(file_name).exists()
 
         if not isExist:
             
-            batch_news_list = {"topic": topic,"news" : call_news_api( url ) } 
-            save_data(file_name, batch_news_list)
+            try:
+                
+                batch_news_list = {"topic": topic,"news" : call_news_api( url ) } 
+                save_data(file_name, batch_news_list)
 
-            print(f"Saved - {file_name} !")
+                print(f"Saved - {file_name} !")
+            
+            except:
+                
+                print(f"Failed - {file_name} !")
 
+                fail_cnt += 1
+
+        else:
+            
+            print(f"Exist - {file_name} !")
+
+
+        return fail_cnt
 
 
     def union_batch():
@@ -322,40 +338,55 @@ def batch_api():
         full_list = []
         
         reg = re.compile(r'news_[0-9]+_[0-9]+_.+\.txt')
-        file_list = os.listdir('data/')
+        file_list = os.listdir('data/alpha_vantage/')
 
         for file in file_list:
             
             if reg.match(file):
                 
-                file_path = f'data/{file}'
+                file_path = f'data/alpha_vantage/{file}'
                 data = get_txt_data(file_path)
 
                 full_list.append(data)
 
         return full_list
 
-        
+
 
     # Step 1: Get list of parameters for API
-    topic_list = parameters_setup['time_to']
+    topic_list = parameters_setup['topics']
     batch_item_list = get_batch_param( topic_list)
 
 
     # Step 2: Loop ever parameter pair, get data and save to txt file    
+    fail_count = 0
+    max_fail_count = 5
+    
     for batch_item in batch_item_list:
-        handle_batch( batch_item )
+        
+        fail_count = handle_batch( batch_item , fail_count )
+
+        if fail_count >= max_fail_count:  
+
+            print(f'Failed for {fail_count} times, stop the API call')          
+            break
 
 
     # Step 3: union all .txt data
     full_list = union_batch()
 
 
-    # 4. Apply sentiment analysis
+    # Step 4. Apply sentiment analysis
     predict_result_list, label_map = get_news_sentiment( full_list )
 
     # Step 5: Organize data
-    df = data_organizig( predict_result_list, label_map, parameters_setup )
+    df, pt = data_organizig( predict_result_list, label_map, parameters_setup )
+    
+
+    # Step 6: Check Data count
+    gpby_cols = [df['topic'], df["date"].dt.to_period("M")]
+    print_row_cnt(df, gpby_cols)
 
 
-    return df
+
+    return pt
