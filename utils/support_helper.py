@@ -45,9 +45,7 @@ def get_yf_data( ticker, start, end = date.today().isoformat()):
 
 
     # for col in data.columns:
-
     #     if pd.api.types.is_datetime64_any_dtype(data[col]):
-
     #         data[col] = data[col].dt.date
 
 
@@ -78,7 +76,7 @@ def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence, data_len=None):
 
 
     for id, y in enumerate(Y_cols):        
-        plt.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.1 , linewidth = 1.6 )
+        plt.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.4 , linewidth = 1.6 )
 
     
     plt.scatter(df_plot.loc[peak_idx, "Date"], df_plot.loc[peak_idx, "Actual"], color="red", label="Actual Peak", s=40)

@@ -4,14 +4,14 @@ import torch
 import torch.nn.functional as F
 
 from models.lstm_model import LSTM_Model
-from utils import get_device,encode_text,NLP_data_cleaning
+from utils import get_checkpoint,encode_text,NLP_data_cleaning
 
 
 # ================================================================================================
 # Parameters
 # ================================================================================================
 
-checkpoint_path = '../../../checkpoints/sentiment_checkpoint.pt'
+checkpoint_path = '../checkpoints/sentiment_checkpoint.pt'
 is_print = False
 
 # ================================================================================================
@@ -20,26 +20,24 @@ is_print = False
 
 def get_trained_model(path):
 
-    candidate_path = Path(path)
-    checkpoint_path = None
+    # candidate_path = Path(path)
+    # checkpoint_path = None
 
-    p_abs = candidate_path.resolve()
+    # p_abs = candidate_path.resolve()
 
-    if p_abs.exists():
-        checkpoint_path = str(p_abs)
-
-
-    if checkpoint_path is None:
-        raise FileNotFoundError(
-            "Could not find sentiment checkpoint. Tried: "
-        )
-
-    
+    # if p_abs.exists():
+    #     checkpoint_path = str(p_abs)
 
 
-    device = get_device()
+    # if checkpoint_path is None:
+    #     raise FileNotFoundError(
+    #         "Could not find sentiment checkpoint. Tried: "
+    #     )
+    # device = get_device()
 
-    checkpoint = torch.load(checkpoint_path, map_location  = device)
+    # checkpoint = torch.load(checkpoint_path, map_location  = device)
+
+    checkpoint, device = get_checkpoint(path)
 
     model_state_dict = checkpoint["model_state_dict"]  
     model_config = checkpoint["model_config"]

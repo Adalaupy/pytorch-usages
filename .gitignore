@@ -70,3 +70,6 @@ test*
 checking*
 news.txt
 
+
+# Others
+backup/

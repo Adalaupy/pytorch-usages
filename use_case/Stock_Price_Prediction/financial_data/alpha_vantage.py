@@ -234,10 +234,11 @@ def main_get_alphavantage( parameters_setup = parameters_setup):
     # 1. Get parameter URL
     API_param_list = get_api_parameters(API_Key_list[0], parameters_setup)
     
-
     # 2. Get News from API
-    news_list = get_news_list( API_param_list )
-
+    try:        
+        news_list = get_news_list( API_param_list )
+    except:
+        raise Exception('Failed to get news data from API')
 
     # 3. Save to txt
     file_name = f'news_{date_from}_{date_to}.txt'
@@ -279,7 +280,7 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
             
             from_month = m + 1
             to_month   = 12 if from_month == 12 else from_month + 1
-            to_day     = 12 if from_month else 1
+            to_day     = 30 if from_month == 12 else 1
             from_date  = f'{year}{str(from_month).zfill(2)}01T0000'
             to_date    = f'{year}{str(to_month).zfill(2)}{str(to_day).zfill(2)}T2359'
 
@@ -360,7 +361,7 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
 
     # Step 2: Loop ever parameter pair, get data and save to txt file    
     fail_count = 0
-    max_fail_count = 5
+    max_fail_count = 10
     
     for batch_item in batch_item_list:
         

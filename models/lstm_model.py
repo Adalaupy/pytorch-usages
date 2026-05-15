@@ -50,6 +50,47 @@ Others:
     => Only Decoder : rewrite email, decoder also can understand meaning
     => Encoder + Decoder : translate, summarize, use when you need strong source to target mapping
 
+
+    
+==================================================================================
+Simple explanation:
+==================================================================================
+
+- input_size:
+    Size of each input feature vector per time step.
+    Use this when your input is already numeric data, such as stock prices or indicators.
+
+- hidden_size:
+    Size of the LSTM hidden representation.
+    Larger values let the model learn more complex patterns, but also increase training cost.
+
+- num_output:
+    Number of final prediction classes or output values.
+    Example: 3 for positive / neutral / negative sentiment.
+
+- num_layers:
+    Number of stacked LSTM layers.
+    More layers can learn deeper patterns, but may be harder to train.
+
+- dropout:
+    Randomly drops some connections during training to reduce overfitting.
+
+- bidirectional:
+    If True, the LSTM reads the sequence forward and backward.
+    Useful for text tasks like sentiment analysis where both past and future words matter.
+
+- vocab_size:
+    Number of tokens in the vocabulary.
+    Needed when using text token IDs.
+
+- embedding_dim:
+    Size of the dense vector used to represent each token.
+    Only needed when using embeddings for text or other categorical IDs.
+
+- padding_idx:
+    Token ID used for padding shorter sequences.
+    This helps the model ignore padded positions.
+
 """
 
 
@@ -123,7 +164,10 @@ class LSTM_Model(nn.Module):
         self.dropout = nn.Dropout(dropout)
     
     
-    def forward(self, x, mask=None):
+
+
+
+    def forward(self, x, mask = None):
         """
         Forward pass
         

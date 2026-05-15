@@ -8,6 +8,6 @@ from utils.image_helper import (
     build_augmentation_transform,
 
 )
-from utils.device import get_device
+from utils.device import get_device,get_checkpoint
 from utils.support_helper import plus_bus_day,get_yf_data, plot_stock_price
 from utils.text_helper import tokenize,encode_text, NLP_data_cleaning
