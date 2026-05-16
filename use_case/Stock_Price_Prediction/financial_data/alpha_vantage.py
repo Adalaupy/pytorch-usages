@@ -13,7 +13,7 @@ import re
 # ================================================================================================
 # User define parameter list
 # ================================================================================================
-
+DATA_FOLDER = 'data/'
 base_url = f"https://www.alphavantage.co/query?limit=1000&sort=RELEVANCE&function=NEWS_SENTIMENT"
 date_from = '20250101'
 date_to   = '20251230'
@@ -242,7 +242,7 @@ def main_get_alphavantage( parameters_setup = parameters_setup):
 
     # 3. Save to txt
     file_name = f'news_{date_from}_{date_to}.txt'
-    file_path = f"data/alpha_vantage/{file_name}"
+    file_path = f"{DATA_FOLDER}alpha_vantage/{file_name}"
     save_data(file_path, news_list)
 
 
@@ -306,7 +306,7 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
 
     def handle_batch( batch_item ,fail_cnt):
         
-        file_name = f'data/alpha_vantage/{batch_item[0]}'
+        file_name = f'{DATA_FOLDER}alpha_vantage/{batch_item[0]}'
         url = batch_item[1]
         topic = batch_item[2]
         isExist = Path(file_name).exists()
@@ -339,13 +339,13 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
         full_list = []
         
         reg = re.compile(r'news_[0-9]+_[0-9]+_.+\.txt')
-        file_list = os.listdir('data/alpha_vantage/')
+        file_list = os.listdir(f'{DATA_FOLDER}alpha_vantage/')
 
         for file in file_list:
             
             if reg.match(file):
                 
-                file_path = f'data/alpha_vantage/{file}'
+                file_path = f'{DATA_FOLDER}alpha_vantage/{file}'
                 data = get_txt_data(file_path)
 
                 full_list.append(data)
@@ -361,7 +361,7 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
 
     # Step 2: Loop ever parameter pair, get data and save to txt file    
     fail_count = 0
-    max_fail_count = 10
+    max_fail_count = 3
     
     for batch_item in batch_item_list:
         

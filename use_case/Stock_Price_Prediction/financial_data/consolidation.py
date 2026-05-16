@@ -7,7 +7,7 @@ from utils import  get_yf_data,plus_bus_day
 # main function to consoldate data from Alpha Vantage and yFinance
 # ================================================================================================
 
-def consoldate_data(
+def consolidate_data(
     ticker = "VOO"
     ,Is_Batch_Run = True
     ,start  = "2025-01-01"
@@ -34,6 +34,7 @@ def consoldate_data(
     else:
         df_alpha = f.main_get_alphavantage(parameters_setup)
 
+    
 
     date_list = df_alpha['date'].drop_duplicates().values.tolist()
     min_date = min(date_list).strftime('%Y%m%d')

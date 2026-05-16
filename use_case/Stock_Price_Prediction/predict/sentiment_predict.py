@@ -1,4 +1,4 @@
-from pathlib import Path
+
 
 import torch
 import torch.nn.functional as F
@@ -181,7 +181,7 @@ def handle_sentiment(texts, actual):
 # ================================================================================================
 
 
-def main( text_list , actual = None ):
+def main_sentiment( text_list , actual = None ):
     
     global device
     global model
