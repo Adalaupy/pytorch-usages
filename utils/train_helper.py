@@ -267,4 +267,4 @@ class EpochTrainer:
         avg_val_loss, result = self.result_evaluation(self.eval, self.val_loss, all_predict, all_actual)
 
 
-        return avg_train_loss,avg_val_loss, result
+        return avg_train_loss, avg_val_loss, result

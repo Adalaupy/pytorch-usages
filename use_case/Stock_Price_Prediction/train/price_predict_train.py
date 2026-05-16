@@ -82,8 +82,7 @@ def preprocess(data , seq_len, steps_ahead, batch_size):
 # main
 # ================================================================================================
 
-def main_stock_price(
-    
+def main_stock_price(    
      start
     ,end
     ,seq_len
@@ -99,11 +98,13 @@ def main_stock_price(
 ):
     # Define device
     device = get_device()
+    
 
     # Get Source data
     data = get_csv_data( start, end)
     input_cols = data.columns.tolist()
     input_cols = [col for col in input_cols if col not in ['Close', 'Date']]
+
 
     # Data preprocessing
     input_size, train_loader, test_loader, x_scaler, y_scaler = preprocess(data , seq_len, steps_ahead, batch_size)

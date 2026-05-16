@@ -1,10 +1,8 @@
-
-
 import torch
 import torch.nn.functional as F
 
 from models.lstm_model import LSTM_Model
-from utils import get_checkpoint,encode_text,NLP_data_cleaning
+from utils import get_checkpoint, encode_text, NLP_data_cleaning
 
 
 # ================================================================================================
@@ -19,23 +17,6 @@ is_print = False
 # ================================================================================================
 
 def get_trained_model(path):
-
-    # candidate_path = Path(path)
-    # checkpoint_path = None
-
-    # p_abs = candidate_path.resolve()
-
-    # if p_abs.exists():
-    #     checkpoint_path = str(p_abs)
-
-
-    # if checkpoint_path is None:
-    #     raise FileNotFoundError(
-    #         "Could not find sentiment checkpoint. Tried: "
-    #     )
-    # device = get_device()
-
-    # checkpoint = torch.load(checkpoint_path, map_location  = device)
 
     checkpoint, device = get_checkpoint(path)
 
@@ -53,8 +34,6 @@ def get_trained_model(path):
 
 
     return device, model_state_dict, model_config, vocab, label_map, id_to_label, max_len, pad_idx, unk_idx
-
-
 
 # ================================================================================================
 # Rebuild the model
@@ -127,7 +106,7 @@ def predict_sentiment( texts, X_tensor ):
 
 def handle_sentiment(texts, actual):
     
-    correct = 0
+    correct   = 0
     incorrect = 0
 
     processed_X = data_preprocess( texts )
