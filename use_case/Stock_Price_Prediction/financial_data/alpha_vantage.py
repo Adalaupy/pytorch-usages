@@ -34,6 +34,11 @@ env_var_list = ['ALPHA_VANTAGE1', 'ALPHA_VANTAGE2']
 API_Key_list = [os.getenv(var) for var in env_var_list]
 
 
+def ensure_data_directories():
+    data_path = Path(DATA_FOLDER)
+    (data_path / 'alpha_vantage').mkdir(parents=True, exist_ok=True)
+
+
 # ================================================================================================
 # Prepare API URL parameters
 # ================================================================================================
@@ -140,29 +145,33 @@ def get_news_sentiment( data ):
 
     predict_result_list = []
 
-    for row in data:
-        
-        topic = row['topic']
-        news_list = row['news']
+    if len(data) > 0:
 
-        date_list = [n[0] for n in news_list]
-        text_list = [n[1] for n in news_list]
+        for row in data:
+            
+            topic = row['topic']
+            news_list = row['news']
 
-        result = sentiment(text_list)
+            date_list = [n[0] for n in news_list]
+            text_list = [n[1] for n in news_list]
 
-        pred_list = result[0]
-        label_map = result[1]
+            result = sentiment.main_sentiment(text_list)
+            print(result)
+            pred_list = result[0]
+            label_map = result[1]
 
-        row_result = list(zip(date_list, text_list, pred_list, repeat(topic)))
-        
-        row_result = [{"date":d,"topic":t,"sentense":s,"predict":p} for d,s,p,t in row_result]
+            row_result = list(zip(date_list, text_list, pred_list, repeat(topic)))
+            
+            row_result = [{"date":d,"topic":t,"sentense":s,"predict":p} for d,s,p,t in row_result]
 
-        predict_result_list.extend(row_result ) 
-
-
-    return predict_result_list, label_map
+            predict_result_list.extend(row_result ) 
 
 
+        return predict_result_list, label_map
+
+    else:
+
+        raise Exception('No data inside')
 
 
 # ================================================================================================
@@ -229,11 +238,14 @@ def print_row_cnt(df : pd.DataFrame, gpby_cols: list):
 # ================================================================================================
 
 def main_get_alphavantage( parameters_setup = parameters_setup):
+
+    ensure_data_directories()
     
 
     # 1. Get parameter URL
     API_param_list = get_api_parameters(API_Key_list[0], parameters_setup)
     
+
     # 2. Get News from API
     try:        
         news_list = get_news_list( API_param_list )
@@ -268,6 +280,8 @@ def main_get_alphavantage( parameters_setup = parameters_setup):
 # ================================================================================================
 
 def main_batch_api(ticker = "VOO" , year = "2025"):    
+
+    ensure_data_directories()
     
     def get_batch_param( topic_list):
         
@@ -361,7 +375,7 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
 
     # Step 2: Loop ever parameter pair, get data and save to txt file    
     fail_count = 0
-    max_fail_count = 3
+    max_fail_count = 2
     
     for batch_item in batch_item_list:
         
