@@ -6,12 +6,17 @@ TARGET_COL = 'steps_ahead'
 
 
 def _return_int_values(start, end):
-    return (
-        isinstance(start, Integral)
-        and not isinstance(start, bool)
-        and isinstance(end, Integral)
-        and not isinstance(end, bool)
-    )
+    def _is_int_like(value):
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, Integral):
+            return True
+        try:
+            return float(value).is_integer()
+        except (TypeError, ValueError):
+            return False
+
+    return _is_int_like(start) and _is_int_like(end)
 
 
 
