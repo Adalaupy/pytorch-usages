@@ -11,7 +11,7 @@ def consolidate_data(
     ticker = "VOO"
     ,Is_Batch_Run = True
     ,start  = "2025-01-01"
-    ,end    = "2025-03-31"
+    ,end    = "2025-12-30"
     ,year   = 2025
     ,topic =  ['earnings', 'financial_markets' , 'economy_fiscal', 'economy_monetary' , 'economy_macro', 'energy_transportation', 'finance']
     ,day_delay = 2

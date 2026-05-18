@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset, random_split
 from models.lstm_model import LSTM_Model
-from utils import EarlyStopping, get_device, EpochTrainer, build_seq, get_yf_data
+from utils import EarlyStopping, get_device, EpochTrainer, build_seq
 from operator import itemgetter
 from sklearn.preprocessing import RobustScaler as Scaler
 import pandas as pd
@@ -11,19 +11,18 @@ import pandas as pd
 ID_COLS = ['Date']
 TARGET_COLS = ['Close']
 BIDIRECTIONAL = False    
-EVAL_METHOD = 'RMSE'
 TEST_SIZE = 0.2
 
 EVAL_METHOD = 'RMSE'
-MODEL_OUTPUT_FILE = '../checkpoints/lstm_checkpoint.pt'
+
 
 # ================================================================================================
 # Function to get data
 # ================================================================================================
 
 def get_csv_data( start, end):
-    
-    data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}.csv'
+                  
+    data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
 
     data = pd.read_csv(data_path)
 
@@ -95,7 +94,11 @@ def main_stock_price(
     ,dropout = 0.2
     ,patience = 5
     ,lr = 0.001
+    ,output_path = '../checkpoints/lstm_checkpoint.pt'
+    ,isPrint = True
 ):
+
+    
     # Define device
     device = get_device()
     
@@ -131,7 +134,7 @@ def main_stock_price(
 
     early_stopping = EarlyStopping(
         patience = patience,
-        path = MODEL_OUTPUT_FILE,
+        path = output_path,
         checkpoint_data={
             "model_config": model_config,
             "preprocess_config": preprocess_config,
@@ -141,6 +144,7 @@ def main_stock_price(
             "x_scaler": x_scaler,
             "y_scaler": y_scaler,
             "steps_ahead" : steps_ahead,
+            "eval_method" : EVAL_METHOD, 
         },
     )
 
@@ -159,10 +163,12 @@ def main_stock_price(
 
         avg_train_loss, avg_val_loss, result = epoch_trainer(train_loader , test_loader )
 
-        for key, value in result.items():        
+        if isPrint:
             
-            print(f"Epoch {epoch + 1:3d} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | {key}: {value:.4f}")
-        
+            for key, value in result.items():        
+                
+                print(f"Epoch {epoch + 1:3d} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | {key}: {value:.4f}")
+            
         # ==================== Early Stopping Check ====================
 
         early_stopping(avg_val_loss, model)

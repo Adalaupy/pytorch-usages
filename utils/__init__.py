@@ -1,4 +1,4 @@
-from utils.train_helper import EarlyStopping,EpochTrainer,build_seq
+from utils.train_helper import EarlyStopping,EpochTrainer,build_seq,result_evaluation
 from utils.image_helper import (
 	ResizeKeepRatioPad,
     Face_Detector,

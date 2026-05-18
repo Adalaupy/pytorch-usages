@@ -34,8 +34,6 @@ from pathlib import Path
 import pandas as pd
 
 
-
-
 SOURCE_1 = "zeroshot/twitter-financial-news-sentiment"
 SOURCE_2 = "sbhatti/financial-sentiment-analysis"
 LABEL_MAP = {
@@ -305,8 +303,6 @@ def main_news_sentiment(
             "max_len": preprocess_config["seq_length"],
         },
     )
-
-
 
 
     # Start training

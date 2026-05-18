@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import requests
 import json
-import use_case.Stock_Price_Prediction.predict.sentiment_predict as sentiment
+import use_case.Stock_Price_Prediction.predict.news_sentiment_predict as sentiment
 from itertools import repeat
 import pandas as pd
 import time
@@ -156,7 +156,7 @@ def get_news_sentiment( data ):
             text_list = [n[1] for n in news_list]
 
             result = sentiment.main_sentiment(text_list)
-            print(result)
+
             pred_list = result[0]
             label_map = result[1]
 

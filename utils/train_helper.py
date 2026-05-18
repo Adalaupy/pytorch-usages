@@ -132,6 +132,54 @@ class EarlyStopping:
 
 
 
+# ================================================================================================
+# Compute validation summary metrics from accumulated predictions
+# ================================================================================================
+
+def result_evaluation( eval_method, val_loss, all_predict, all_actual):
+    
+    avg_val_loss = val_loss / len(all_predict)
+
+    if eval_method == 'R2':
+        
+        all_predict = torch.cat(all_predict)
+        all_actual  = torch.cat(all_actual)
+
+        ss_res = ((all_actual - all_predict) ** 2).sum()
+        ss_tot = ((all_actual - all_actual.mean()) ** 2).sum()
+        r2 = (1 - ss_res / ss_tot).item()
+
+        result = {"r2" : r2,}
+    
+    
+    elif eval_method == 'Accuracy': 
+        
+        total = 0
+        correct = 0
+
+        for i in range(len(all_predict)):
+            
+            pred = all_predict[i].argmax(dim = 1)
+            actual = all_actual[i]
+
+            correct += (pred == actual).sum().item()
+            total += actual.size(0)
+            
+            
+        accuracy = correct / total
+        
+        result = {"Accuracy" : accuracy}
+
+
+    elif eval_method == 'RMSE':
+        
+        rmse = np.sqrt(avg_val_loss)            
+        result = { "RMSE" : rmse }
+
+
+
+    return avg_val_loss , result
+
 
 
 # ================================================================================================
@@ -156,54 +204,6 @@ class EpochTrainer:
     def set_criterion(self, criterion):
         
         self.criterion = criterion
-
-
-    # --------------------------------------------------------------------------------
-    # Compute validation summary metrics from accumulated predictions
-    # --------------------------------------------------------------------------------
-    
-    def result_evaluation(self, eval_method, val_loss, all_predict, all_actual  ):
-        
-        avg_val_loss = val_loss / len(all_predict)
-
-        if eval_method == 'R2':
-            
-            all_predict = torch.cat(all_predict)
-            all_actual  = torch.cat(all_actual)
-
-            ss_res = ((all_actual - all_predict) ** 2).sum()
-            ss_tot = ((all_actual - all_actual.mean()) ** 2).sum()
-            r2 = (1 - ss_res / ss_tot).item()
-
-            result = {"r2" : r2,}
-        
-        
-        elif eval_method == 'Accuracy': 
-            
-            total = 0
-            correct = 0
-
-            for i in range(len(all_predict)):
-                
-                pred = all_predict[i].argmax(dim = 1)
-                actual = all_actual[i]
-
-                correct += (pred == actual).sum().item()
-                total += actual.size(0)
-                
-                
-            accuracy = correct / total
-            
-            result = {"Accuracy" : accuracy}
-
-
-        elif eval_method == 'RMSE':
-            
-            rmse = np.sqrt(avg_val_loss)            
-            result = { "RMSE" : rmse }
-
-        return avg_val_loss , result
-    
 
     # --------------------------------------------------------------------------------
     # Execute one epoch of optimization and one epoch of validation
@@ -264,7 +264,7 @@ class EpochTrainer:
                 all_actual.append(actual)
 
 
-        avg_val_loss, result = self.result_evaluation(self.eval, self.val_loss, all_predict, all_actual)
+        avg_val_loss, result = result_evaluation(self.eval, self.val_loss, all_predict, all_actual)
 
 
         return avg_train_loss, avg_val_loss, result

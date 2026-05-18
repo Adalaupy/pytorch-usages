@@ -1,7 +1,7 @@
 Parameter,Start,End,incremental_add,Num_of_gp,is_active
-Batch_size,50,100,20,,1
+batch_size,50,100,20,,1
 hidden_size,32,100,20,,0
-num_layer,1,3,1,,1
+num_layers,1,3,1,,1
 seq_len,5,20,5,,1
 Dropout,0.1,0.3,0.1,,0
 lr,0.001,0.003,,3,1

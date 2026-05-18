@@ -4,8 +4,7 @@ import yfinance as yf
 import pandas as pd
 from operator import itemgetter
 from models.lstm_model import LSTM_Model
-from utils import get_checkpoint, build_seq, plus_bus_day, get_yf_data, plot_stock_price
-
+from utils import get_checkpoint, build_seq, plus_bus_day, result_evaluation, plot_stock_price
 
 # ================================================================================================
 # Parameters
@@ -14,8 +13,8 @@ from utils import get_checkpoint, build_seq, plus_bus_day, get_yf_data, plot_sto
 ckpt_path = '../checkpoints/lstm_checkpoint.pt'
 ticker = 'VOO'
 start = '2025-01-01'
-end   = '2025-03-31'
-data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}.csv'
+end   = '2025-05-01'
+data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
 
 # ================================================================================================
 # Get back trained model, device
@@ -34,8 +33,9 @@ def get_trained_model(path):
     steps_ahead = checkpoint["steps_ahead"]
     target_cols = checkpoint['target_cols']
     model_state_dict = checkpoint["model_state_dict"]
+    eval_method = checkpoint['eval_method']
 
-    return device, model_config, x_scaler, y_scaler, input_cols, id_cols, seq_len, steps_ahead, target_cols, model_state_dict
+    return device, model_config, x_scaler, y_scaler, input_cols, id_cols, seq_len, steps_ahead, target_cols, model_state_dict,eval_method
 
 # ================================================================================================
 # Rebuild the model
@@ -92,7 +92,7 @@ def get_predict_price( X, y ):
 # Main
 # ================================================================================================
 
-def main():
+def main_price_predict(data_path = data_path , ckpt_path = ckpt_path, isEval = False):
 
 
     global device
@@ -107,15 +107,13 @@ def main():
     global target_cols
     global model_state_dict
 
-    device, model_config, x_scaler, y_scaler, input_cols, id_cols, seq_len, steps_ahead, target_cols, model_state_dict = get_trained_model(ckpt_path)
+    device, model_config, x_scaler, y_scaler, input_cols, id_cols, seq_len, steps_ahead, target_cols, model_state_dict, eval_method = get_trained_model(ckpt_path)
 
     model = rebuild_model()
-
 
     data = pd.read_csv(data_path)
 
     X_seq, X_Dates, y_Seq = data_preprocess( data )
-
 
     Result_list = []
 
@@ -131,7 +129,6 @@ def main():
 
         actual_price, predict_price, diff = get_predict_price( X, y )
 
-
         result = {
                     "Ref_From" : fr,
                     "Ref_To" : to,
@@ -144,5 +141,17 @@ def main():
         Result_list.append(result)
 
 
+    all_predict = [result['Predict'] for result in Result_list]
+    all_actual =  [result['Actual'] for result in Result_list]
+
+    eval_result = result_evaluation( eval_method, 0, all_predict, all_actual)
     df_result = pd.DataFrame(Result_list)
     plot_stock_price(df_result, 'Date', ('Actual','Predict') , 'Actual', 6.0, 40)
+
+
+
+    if isEval:        
+        return eval_result,df_result
+
+    else:
+        return df_result
