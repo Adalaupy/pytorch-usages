@@ -14,11 +14,10 @@ class CNNModel(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(2),                             # [B,16,14,14]
 
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),# [B,32,14,14]
+            nn.Conv2d(16, 32, kernel_size=3, padding=1), # [B,32,14,14]
             nn.ReLU(),
             nn.MaxPool2d(2),                             # [B,32,7,7]
         )
-
         
         self.classifier = nn.Linear(32 * 7 * 7, num_classes)
 
@@ -31,8 +30,9 @@ class CNNModel(nn.Module):
 ==================================================================================
 To explain the features part:
 ==================================================================================
+
 1. Input is a grayscale image of size 28 x 28.
-2. kernel_size=3 and padding=1 are common choices.
+2. kernel_size = 3 and padding = 1 are common choices.
 3. MaxPool2d(2) means 2 x 2 pooling, and there are 2 pooling layers. (normal to have  2 x 2)
 4. In Conv2d(1, 16, ...), 1 means grayscale input channel, 16 is user-defined output channels.
 5. Output becomes [B,16,28,28]:
@@ -41,7 +41,6 @@ To explain the features part:
 7. In Conv2d(16, 32, ...), 16 comes from previous output, and 32 is commonly chosen as double (16 x 2).
 8. Before Linear, output [B,32,7,7] is flattened to 32 x 7 x 7.
 9. Linear maps 32 x 7 x 7 features to num_classes outputs.
-
 
 ==================================================================================
 Remarks:

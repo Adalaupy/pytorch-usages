@@ -1,6 +1,4 @@
 import torch
-import numpy as np
-import yfinance as yf
 import pandas as pd
 from operator import itemgetter
 from models.lstm_model import LSTM_Model
@@ -92,8 +90,7 @@ def get_predict_price( X, y ):
 # Main
 # ================================================================================================
 
-def main_price_predict(data_path = data_path , ckpt_path = ckpt_path, isEval = False):
-
+def main_price_predict(data_path = data_path , ckpt_path = ckpt_path, isEval = False, plot_len = None):
 
     global device
     global model
@@ -140,15 +137,22 @@ def main_price_predict(data_path = data_path , ckpt_path = ckpt_path, isEval = F
         
         Result_list.append(result)
 
+    compare_set = [result for result in Result_list if result['Predict'] is not None and result['Actual'] is not None ]
+    all_predict = [result['Predict'] for result in compare_set]
+    all_actual =  [result['Actual'] for result in compare_set]
 
-    all_predict = [result['Predict'] for result in Result_list]
-    all_actual =  [result['Actual'] for result in Result_list]
-
-    eval_result = result_evaluation( eval_method, 0, all_predict, all_actual)
+    eval_result = result_evaluation( eval_method, all_predict, all_actual)
     df_result = pd.DataFrame(Result_list)
-    plot_stock_price(df_result, 'Date', ('Actual','Predict') , 'Actual', 6.0, 40)
 
 
+
+    if plot_len is None:
+
+        plot_len = len(df_result)
+
+        
+
+    plot_stock_price(df_result, 'Date', ('Actual','Predict') , 'Actual', 13, 10, plot_len)
 
     if isEval:        
         return eval_result,df_result

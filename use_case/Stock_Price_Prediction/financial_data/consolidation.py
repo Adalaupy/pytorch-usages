@@ -35,7 +35,7 @@ def consolidate_data(
         df_alpha = f.main_get_alphavantage(parameters_setup)
 
     
-
+    # The date range will be updated based on alpha vantage dataset 
     date_list = df_alpha['date'].drop_duplicates().values.tolist()
     min_date = min(date_list).strftime('%Y%m%d')
     max_date = max(date_list).strftime('%Y%m%d')

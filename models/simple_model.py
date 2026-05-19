@@ -1,6 +1,6 @@
 
 """
-Simple Feed-Forward Network (MLP)
+Simple Feed-Forward Network (SFNNs)
 
 - Tabular data
 - regression
@@ -51,13 +51,11 @@ class Simple_Model(nn.Module):
         for layer in self.layers[:-1]:
             
             x = F.relu(layer(x))
-
             x = self.dropout(x)
 
 
         # for classification:
-        if self.num_output == 2:
-            
+        if self.num_output == 2:            
             x = F.sigmoid( self.layers[-1](x) )
         
 

@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-
 from models.lstm_model import LSTM_Model
 from utils import get_checkpoint, encode_text, NLP_data_cleaning
 
@@ -26,18 +25,19 @@ def get_trained_model(path):
     label_map = checkpoint["label_map"]
     id_to_label = {int(v): k for k, v in label_map.items()}
 
+
     preprocess_config = checkpoint.get("preprocess_config", {})
     max_len = int(preprocess_config.get("seq_length", checkpoint.get("max_len", 40)))
     pad_idx = int(preprocess_config.get("padding_idx", 0))
     unk_idx = int(preprocess_config.get("unk_idx", 1))
 
-
-
     return device, model_state_dict, model_config, vocab, label_map, id_to_label, max_len, pad_idx, unk_idx
+
 
 # ================================================================================================
 # Rebuild the model
 # ================================================================================================
+
 
 def rebuild_model():
     
@@ -46,6 +46,7 @@ def rebuild_model():
     _= model.eval()
     
     return model
+
 
 # ================================================================================================
 # Function to preprocess data
@@ -60,6 +61,7 @@ def data_preprocess( texts):
     X_tensor = torch.tensor(X, dtype=torch.long, device=device)
 
     return X_tensor
+
 
 # ================================================================================================
 # Function to predict
@@ -80,6 +82,7 @@ def predict_sentiment( texts, X_tensor ):
         label = id_to_label.get(cls_id, str(cls_id))
         original_pred_label = ''
 
+        # update predict value to neutral if confidence is less than 0.5
         if conf < 0.5 and label != 'neutral':
 
             pred_ids = label_map.get('neutral')
@@ -109,12 +112,12 @@ def handle_sentiment(texts, actual):
     correct   = 0
     incorrect = 0
 
-    processed_X = data_preprocess( texts )
-    
-    result = predict_sentiment( texts , processed_X )
 
+    processed_X = data_preprocess( texts )
+    result = predict_sentiment( texts , processed_X )
     predicts_list = [pred['pred_id'] for pred in result]
-    
+
+
     for item in result:
 
         predict = item['pred_label']
@@ -133,14 +136,14 @@ def handle_sentiment(texts, actual):
             actual = '--'
             compare = ''
 
-            
-        if compare != 'Matched !!' or compare == '':
-            
-            result_item = item.copy()
-            result_item = {'Actual': actual, **{k: v for k, v in result_item.items() if k != 'Acutal'}}
 
-            if is_print:
+        if is_print:
+            
+            if compare != 'Matched !!' or compare == '':
                 
+                result_item = item.copy()
+                result_item = {'Actual': actual, **{k: v for k, v in result_item.items() if k != 'Actual'}}
+                    
                 print(f"{compare}")
                 
                 for k,v in result_item.items():

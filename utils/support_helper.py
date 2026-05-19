@@ -56,7 +56,7 @@ def get_yf_data( ticker, start, end = date.today().isoformat()):
 # Plot stock Price and the Peak + Trough 
 # ================================================================================================
 
-def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence, data_len=None):
+def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence , distance, data_len=None):
     
     colors = ['blue', 'orange', 'yellow', 'purple']
     
@@ -69,14 +69,14 @@ def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence, data_len=None):
     x = df_plot[X_Col]
     turning_col = df_plot[turn_col]
 
-    peak_idx, _ = find_peaks( turning_col, prominence= prominence)
-    trough_idx,_ = find_peaks( -turning_col, prominence= prominence)
+    peak_idx, _ = find_peaks( turning_col, prominence= prominence , distance=distance)
+    trough_idx,_ = find_peaks( -turning_col, prominence= prominence, distance=distance)
 
     plt.figure(figsize=(15, 8))
 
 
     for id, y in enumerate(Y_cols):        
-        plt.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.4 , linewidth = 1.6 )
+        plt.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.4 , linewidth = 1.7 )
 
     
     plt.scatter(df_plot.loc[peak_idx, "Date"], df_plot.loc[peak_idx, "Actual"], color="red", label="Actual Peak", s=40)
@@ -84,9 +84,9 @@ def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence, data_len=None):
 
 
     for i in peak_idx:
-        plt.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="red", alpha=0.5, linewidth=1.1)
+        plt.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="red", alpha=0.4, linewidth=0.9)
     for i in trough_idx:
-        plt.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="green", alpha=0.5, linewidth=1.1)
+        plt.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="green", alpha=0.4, linewidth=0.9)
 
 
     plt.legend()

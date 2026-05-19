@@ -12,7 +12,6 @@ ID_COLS = ['Date']
 TARGET_COLS = ['Close']
 BIDIRECTIONAL = False    
 TEST_SIZE = 0.2
-
 EVAL_METHOD = 'RMSE'
 
 
@@ -20,9 +19,9 @@ EVAL_METHOD = 'RMSE'
 # Function to get data
 # ================================================================================================
 
-def get_csv_data( start, end):
+def get_csv_data( start, end, delay = 2):
                   
-    data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
+    data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay{delay}.csv'
 
     data = pd.read_csv(data_path)
 
@@ -175,6 +174,8 @@ def main_stock_price(
 
         if early_stopping.early_stop:
             
-            print("Early stopping triggered! Training stopped.")
+            if isPrint:
+            
+                print("Early stopping triggered! Training stopped.")
             
             break

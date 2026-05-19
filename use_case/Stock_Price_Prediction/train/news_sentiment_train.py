@@ -284,8 +284,6 @@ def main_news_sentiment(
     }
 
 
-
-
     # Prepare model stuff
     model = LSTM_Model(**model_config).to(device)
     optimizer = torch.optim.Adam(model.parameters(),  lr = lr)

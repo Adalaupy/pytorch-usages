@@ -3,14 +3,22 @@ from numbers import Integral
 from itertools import product
 from price_predict_train import main_stock_price
 from use_case.Stock_Price_Prediction.predict.price_predict import main_price_predict
+from pathlib import Path
 
 
 TARGET_COL = 'steps_ahead'
 MASTER_PATH = 'price_predict_parameters.csv'
-CP_PATH = '../checkpoints/experiement'
+CP_PATH = '../checkpoints/experiment'
 
 start = '2025-01-01'
-end = '2025-05-01'
+end = '2025-09-01'
+data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
+
+
+# ================================================================================================
+# Function to check if data type of input parameter = int
+# ================================================================================================
+
 
 def _return_int_values(start, end):
     
@@ -60,7 +68,6 @@ def get_group_values(start, end, num_of_group):
     step = (end - start) / (num_of_group - 1)
     values = [start + i * step for i in range(num_of_group)]
     return [int(round(v)) for v in values] if return_int else values
-
 
 
 # ================================================================================================
@@ -117,8 +124,7 @@ def get_all_combo(value_list):
 
         for combo in product(*values):
             
-            combo_dict = dict(zip(names, combo))         
-            
+            combo_dict = dict(zip(names, combo))            
             seq_combo_list.append(combo_dict)
 
 
@@ -130,32 +136,69 @@ def get_all_combo(value_list):
 
 
 # ================================================================================================
+# Function to removal checkpoint result if it's not the best result
+# ================================================================================================
+
+def remove_files(file_paths):
+    for path in file_paths:
+        p = Path(path)
+        if p.exists():
+            p.unlink()
+
+# ================================================================================================
 # Compare performance of different combo for each seq_len
 # ================================================================================================
 
 def compare_model(seq_len, values , steps_ahead ):
     
-    best_id = 0
+    best_id = None
+    best_eval = None
+    best_param = None
+
+    remove_path = []
 
     for id in range(len(values)):
         
         value = values[id]
         id += 1        
         
-        checkpoint_path = f'{CP_PATH}/p({seq_len})_({steps_ahead})days_ahead_id({id})'
+        checkpoint_name =f'{steps_ahead}ahead_p({seq_len})_id{id}.pt'
+        checkpoint_path = f'{CP_PATH}/{checkpoint_name}'
         params = {**value, "seq_len" : seq_len, "output_path": checkpoint_path, "steps_ahead": steps_ahead, "isPrint" : False }
 
         # train the model
         main_stock_price(start= start , end = end , **params)
 
         # get the result from above trained model
-        eval  = main_price_predict( ckpt_path = checkpoint_path, isEval = True)[0]
-
+        print(f"{checkpoint_name[:-3]} : ")
+        eval = next(iter( main_price_predict( data_path=data_path, ckpt_path = checkpoint_path, isEval = True)[0].values() ))
         print(eval)
+        print('-' * 50)
+        if best_id == None:            
+      
+            best_id = id
+            best_eval = eval
+            best_param = params
+        
+        elif eval < best_eval:
+            
+            best_id = id
+            best_eval = eval
+            best_param = params
+
+        remove_path.append(checkpoint_path)
+
+
+    remove_path = [path for path in remove_path if path != best_param['output_path']]
+    remove_files( remove_path  )
+
+
+    
+    return {"best_id": best_id, "best_val" : best_eval , **best_param }
 
 
 # ================================================================================================
-# 
+# Main function to get best result for each seq_len
 # ================================================================================================
 
 def main_experiment(steps_ahead):    
@@ -163,21 +206,27 @@ def main_experiment(steps_ahead):
     value_list = get_parameters_list()
     combo_list = get_all_combo(value_list)
 
+    full_best_result = []
 
-    for item in combo_list[:1]:
+
+    for item_p in combo_list:
         
-        seq_len = item['seq_len']
-        values  = item['items']
+        seq_len = item_p['seq_len']
+        values  = item_p['items']
+        p_best_result = compare_model(seq_len, values , steps_ahead )
+        full_best_result.append(p_best_result)
+
+    return full_best_result
 
 
-        compare_model(seq_len, values , steps_ahead )
- 
+# ================================================================================================
+# Testing
+# ================================================================================================
+       
 
-        
+full_best_result = main_experiment(10)
 
-
-
-
-
-
-
+print('=' * 80)
+for p in full_best_result:
+    print(p['output_path'][:-3], ' : ', p['best_val'])
+    df = main_price_predict( data_path=data_path, ckpt_path =  p['output_path'])

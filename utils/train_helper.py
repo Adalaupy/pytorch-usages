@@ -115,6 +115,7 @@ class EarlyStopping:
     # --------------------------------------------------------------------------------
     # Persist model weights, plus optional metadata, to checkpoint file
     # --------------------------------------------------------------------------------
+    
     def save_checkpoint(self, model):
 
         ensure_checkpoint_dir(self.path)
@@ -136,9 +137,7 @@ class EarlyStopping:
 # Compute validation summary metrics from accumulated predictions
 # ================================================================================================
 
-def result_evaluation( eval_method, val_loss, all_predict, all_actual):
-    
-    avg_val_loss = val_loss / len(all_predict)
+def result_evaluation( eval_method, all_predict, all_actual):
 
     if eval_method == 'R2':
         
@@ -172,13 +171,16 @@ def result_evaluation( eval_method, val_loss, all_predict, all_actual):
 
 
     elif eval_method == 'RMSE':
-        
-        rmse = np.sqrt(avg_val_loss)            
+            
+        all_predict = np.asarray(all_predict, dtype=float)
+        all_actual = np.asarray(all_actual, dtype=float)
+        rmse = np.sqrt(np.mean((all_actual - all_predict) ** 2))
+       
         result = { "RMSE" : rmse }
 
 
 
-    return avg_val_loss , result
+    return result
 
 
 
@@ -239,13 +241,12 @@ class EpochTrainer:
 
        
         avg_train_loss = self.train_loss / len(train_loader)
-
-
+        
         # ------------------- Validation -------------------
 
         self.model.eval()
 
-
+        
         all_predict = []
         all_actual = []
 
@@ -263,8 +264,9 @@ class EpochTrainer:
                 all_predict.append(predict)
                 all_actual.append(actual)
 
+        avg_val_loss = self.val_loss / len(all_predict)
 
-        avg_val_loss, result = result_evaluation(self.eval, self.val_loss, all_predict, all_actual)
+        result = result_evaluation(self.eval, all_predict, all_actual)
 
 
         return avg_train_loss, avg_val_loss, result

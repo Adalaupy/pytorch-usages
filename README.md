@@ -61,3 +61,27 @@ pip install -r requirements.txt
 # Run main script
 python main.py
 ```
+
+## After editing pyproject.toml
+
+If you update or create `pyproject.toml`, install your project in editable mode:
+
+```bash
+pip install -e .
+```
+
+Or, if you use Poetry:
+
+```bash
+poetry install
+```
+
+## Hyperparameter Search
+
+To automatically search for the best combination of parameters, you can run:
+
+```bash
+python use_case/Stock_Price_Prediction/train/hyperparameter_experiments.py
+```
+This will execute a grid search and print the best results found.
+```
