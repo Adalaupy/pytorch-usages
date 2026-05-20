@@ -43,12 +43,6 @@ def get_yf_data( ticker, start, end = date.today().isoformat()):
     data = data.reset_index()
     data.columns = ['Date', 'Close', 'High', 'Low', "Open", "Volume"]
 
-
-    # for col in data.columns:
-    #     if pd.api.types.is_datetime64_any_dtype(data[col]):
-    #         data[col] = data[col].dt.date
-
-
     return data
 
 
@@ -56,7 +50,7 @@ def get_yf_data( ticker, start, end = date.today().isoformat()):
 # Plot stock Price and the Peak + Trough 
 # ================================================================================================
 
-def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence , distance, data_len=None):
+def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence , distance, data_len=None, is_show=True):
     
     colors = ['blue', 'orange', 'yellow', 'purple']
     
@@ -72,23 +66,27 @@ def plot_stock_price( df,X_Col, Y_cols, turn_col ,prominence , distance, data_le
     peak_idx, _ = find_peaks( turning_col, prominence= prominence , distance=distance)
     trough_idx,_ = find_peaks( -turning_col, prominence= prominence, distance=distance)
 
-    plt.figure(figsize=(15, 8))
 
-
+    fig, ax = plt.subplots(figsize=(15, 8))
     for id, y in enumerate(Y_cols):        
-        plt.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.4 , linewidth = 1.7 )
+        ax.plot(x, df_plot[y], color=colors[id], label = y, alpha = 0.4 , linewidth = 1.7 )
 
     
-    plt.scatter(df_plot.loc[peak_idx, "Date"], df_plot.loc[peak_idx, "Actual"], color="red", label="Actual Peak", s=40)
-    plt.scatter(df_plot.loc[trough_idx, "Date"], df_plot.loc[trough_idx, "Actual"], color="green", label="Actual Trough", s=40)
+    ax.scatter(df_plot.loc[peak_idx, "Date"], df_plot.loc[peak_idx, "Actual"], color="red", label="Actual Peak", s=40)
+    ax.scatter(df_plot.loc[trough_idx, "Date"], df_plot.loc[trough_idx, "Actual"], color="green", label="Actual Trough", s=40)
 
 
     for i in peak_idx:
-        plt.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="red", alpha=0.4, linewidth=0.9)
+        ax.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="red", alpha=0.4, linewidth=0.9)
     for i in trough_idx:
-        plt.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="green", alpha=0.4, linewidth=0.9)
+        ax.axvline(df_plot.loc[i, "Date"], linestyle = 'dashed', color="green", alpha=0.4, linewidth=0.9)
 
 
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    ax.legend()
+    fig.tight_layout()
+
+    if is_show:
+        plt.show()
+
+
+    return fig

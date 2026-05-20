@@ -336,9 +336,11 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
             
             except:
                 
+                fail_cnt += 1
+                
                 print(f"Failed - {file_name} !")
 
-                fail_cnt += 1
+                
 
         else:
             
@@ -363,7 +365,9 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
                 data = get_txt_data(file_path)
 
                 full_list.append(data)
-
+    
+        # full_list = list(set(full_list))
+    
         return full_list
 
 

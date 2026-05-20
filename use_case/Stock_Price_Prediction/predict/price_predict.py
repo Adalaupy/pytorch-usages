@@ -90,7 +90,7 @@ def get_predict_price( X, y ):
 # Main
 # ================================================================================================
 
-def main_price_predict(data_path = data_path , ckpt_path = ckpt_path, isEval = False, plot_len = None):
+def main_price_predict(data_path = data_path , ckpt_path = ckpt_path, isEval = False, IsGraph = False, show_graph = False, plot_len = None):
 
     global device
     global model
@@ -150,12 +150,16 @@ def main_price_predict(data_path = data_path , ckpt_path = ckpt_path, isEval = F
 
         plot_len = len(df_result)
 
-        
 
-    plot_stock_price(df_result, 'Date', ('Actual','Predict') , 'Actual', 13, 10, plot_len)
+    return_List = [df_result]  
+    
+    if isEval:
+        return_List.insert(0, eval_result)       
 
-    if isEval:        
-        return eval_result,df_result
 
-    else:
-        return df_result
+    if IsGraph:
+        graph = plot_stock_price(df_result, 'Date', ('Actual','Predict') , 'Actual', 13, 10, plot_len, is_show=show_graph)
+        return_List.append(graph)
+    
+
+    return return_List

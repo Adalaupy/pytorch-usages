@@ -1,6 +1,7 @@
 import pandas as pd
 from numbers import Integral
 from itertools import product
+import matplotlib.pyplot as plt
 from price_predict_train import main_stock_price
 from use_case.Stock_Price_Prediction.predict.price_predict import main_price_predict
 from pathlib import Path
@@ -11,7 +12,7 @@ MASTER_PATH = 'price_predict_parameters.csv'
 CP_PATH = '../checkpoints/experiment'
 
 start = '2025-01-01'
-end = '2025-09-01'
+end = '2025-12-01'
 data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
 
 
@@ -78,7 +79,6 @@ def get_parameters_list():
 
     master = pd.read_csv( MASTER_PATH )
     value_list = []
-
 
     if 'is_active' in master.columns:
         master = master[master['is_active'] != 0].reset_index(drop=True)
@@ -154,6 +154,7 @@ def compare_model(seq_len, values , steps_ahead ):
     best_id = None
     best_eval = None
     best_param = None
+    best_name = None
 
     remove_path = []
 
@@ -162,39 +163,69 @@ def compare_model(seq_len, values , steps_ahead ):
         value = values[id]
         id += 1        
         
-        checkpoint_name =f'{steps_ahead}ahead_p({seq_len})_id{id}.pt'
-        checkpoint_path = f'{CP_PATH}/{checkpoint_name}'
+        checkpoint_name =f'{steps_ahead}ahead_p({seq_len})_id{id}'
+        checkpoint_path = f'{CP_PATH}/{checkpoint_name}.pt'
+
         params = {**value, "seq_len" : seq_len, "output_path": checkpoint_path, "steps_ahead": steps_ahead, "isPrint" : False }
 
         # train the model
         main_stock_price(start= start , end = end , **params)
 
         # get the result from above trained model
-        print(f"{checkpoint_name[:-3]} : ")
-        eval = next(iter( main_price_predict( data_path=data_path, ckpt_path = checkpoint_path, isEval = True)[0].values() ))
+        print(f"{checkpoint_name} : ")
+        eval = next(iter( main_price_predict( data_path=data_path, ckpt_path = checkpoint_path, isEval = True, IsGraph = True, show_graph = True)[0].values() ))
         print(eval)
-        print('-' * 50)
+        print('-' * 100)
         if best_id == None:            
       
             best_id = id
             best_eval = eval
             best_param = params
+            best_name = checkpoint_name
         
         elif eval < best_eval:
             
             best_id = id
             best_eval = eval
             best_param = params
+            best_name = checkpoint_name
 
         remove_path.append(checkpoint_path)
 
 
     remove_path = [path for path in remove_path if path != best_param['output_path']]
     remove_files( remove_path  )
-
-
     
-    return {"best_id": best_id, "best_val" : best_eval , **best_param }
+    return {"name" : best_name ,"best_id": best_id, "best_val" : best_eval , **best_param }
+
+# ================================================================================================
+# function to save best result of every seq_len
+# ================================================================================================
+
+def save_best_results(full_best_result):
+    
+    
+    print('=' * 80)
+    print("Save Result now")
+
+    for p in full_best_result:
+        print(p['output_path'][:-3], ' : ', p['best_val'])
+        
+        df, graph = main_price_predict( data_path=data_path, ckpt_path =  p['output_path'] , IsGraph = True, show_graph = True)
+        
+        path = p['output_path'][:-3]
+        
+        df.to_csv( f"{path}.csv", index=False)
+        
+        graph.suptitle(f"{p['name']}\n{p['best_val']:.4f}", y=0.98)
+        graph.subplots_adjust(top=0.88)
+        graph.savefig( f"{path}.png", dpi=300)
+        plt.close(graph)
+
+
+    df_best_combo = pd.DataFrame(full_best_result)
+    df_best_combo.to_csv(f'{CP_PATH}/best_results.csv', index=False)   
+
 
 
 # ================================================================================================
@@ -208,14 +239,18 @@ def main_experiment(steps_ahead):
 
     full_best_result = []
 
-
     for item_p in combo_list:
         
         seq_len = item_p['seq_len']
         values  = item_p['items']
         p_best_result = compare_model(seq_len, values , steps_ahead )
+        
         full_best_result.append(p_best_result)
 
+
+    print('Save Result.....')
+    save_best_results(full_best_result)
+    
     return full_best_result
 
 
@@ -224,9 +259,4 @@ def main_experiment(steps_ahead):
 # ================================================================================================
        
 
-full_best_result = main_experiment(10)
-
-print('=' * 80)
-for p in full_best_result:
-    print(p['output_path'][:-3], ' : ', p['best_val'])
-    df = main_price_predict( data_path=data_path, ckpt_path =  p['output_path'])
+# full_best_result = main_experiment(10)

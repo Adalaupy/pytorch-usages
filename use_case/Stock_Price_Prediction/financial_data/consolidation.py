@@ -14,7 +14,7 @@ def consolidate_data(
     ,end    = "2025-12-30"
     ,year   = 2025
     ,topic =  ['earnings', 'financial_markets' , 'economy_fiscal', 'economy_monetary' , 'economy_macro', 'energy_transportation', 'finance']
-    ,day_delay = 2
+    ,day_delay = 1
 
 ):
     
@@ -50,6 +50,21 @@ def consolidate_data(
     df_alpha[new_col] =  df_alpha['date'].apply(lambda x: plus_bus_day(x, T_plus = day_delay))
     df_alpha = df_alpha[column_list]
 
+    print(f'Get next {day_delay} business day')
+
+    # add is_include_weekend and group_row_count columns to indicate weekend data
+    sum_cols = [col for col in column_list if col not in ["date", "date_delay"]]
+
+    group_sizes = df_alpha.groupby("date_delay")["date_delay"].transform("size")
+    df_alpha["is_include_weekend"] = group_sizes.gt(1).astype(int)
+    df_alpha["group_row_count"] = group_sizes
+
+    agg_map = {col: "sum" for col in sum_cols}
+    agg_map["is_include_weekend"] = "max"
+    agg_map["group_row_count"] = "max"
+    df_alpha = df_alpha.groupby("date_delay", as_index=False).agg(agg_map)
+
+    print(f"Group by data")
 
 
     # Get data from yFinance
@@ -63,9 +78,10 @@ def consolidate_data(
     
 
     df_merged = df_alpha.merge(df_price, left_on='date_delay', right_on='Date', how='inner')\
-                        .drop(columns=['date' , 'date_delay'])
+                        .drop(columns=['date_delay'])
 
 
+    print(f"Merge 2 datasets")
 
     df_merged.to_csv(f'data/main_{min_date}_{max_date}_delay{day_delay}.csv' ,index = False)
 
