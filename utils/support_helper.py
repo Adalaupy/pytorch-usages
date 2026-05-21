@@ -1,7 +1,6 @@
-from datetime import timedelta,date
+from datetime import timedelta
 import holidays
 import pandas as pd
-import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 
@@ -30,20 +29,6 @@ def plus_bus_day(date, T_plus, country_code = 'US' ):
 
 
     return current_date.date()
-
-# ================================================================================================
-# Download stock history from yFinance
-# ================================================================================================
-
-def get_yf_data( ticker, start, end = date.today().isoformat()):
-    
-    df = yf.download(ticker , start = start , end = end)
-    data = df.dropna().copy()
-
-    data = data.reset_index()
-    data.columns = ['Date', 'Close', 'High', 'Low', "Open", "Volume"]
-
-    return data
 
 
 # ================================================================================================

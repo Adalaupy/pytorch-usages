@@ -146,14 +146,10 @@ class Face_Detector:
 
             # Sort the face by face size
             faces_sorted = sorted(faces, key=lambda x: x['box'][2], reverse=True)
-
             face = [item for item in faces_sorted if item['box'][2] > self.input_size[0] and item['box'][3] > self.input_size[0] ][0]
 
             f_x, f_y, f_width, f_height = face['box']
-
-
             cropped_img = Img.crop((f_x, f_y, f_x + f_width, f_y + f_height))
-
 
             return cropped_img
             

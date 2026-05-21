@@ -12,9 +12,9 @@ def consolidate_data(
     ,Is_Batch_Run = True
     ,start  = "2025-01-01"
     ,end    = "2025-12-30"
-    ,year   = 2025
+    ,year   = 2026
     ,topic =  ['earnings', 'financial_markets' , 'economy_fiscal', 'economy_monetary' , 'economy_macro', 'energy_transportation', 'finance']
-    ,day_delay = 1
+    ,day_delay = 2
 
 ):
     
@@ -33,6 +33,8 @@ def consolidate_data(
         df_alpha = f.main_batch_api(ticker, year)
     else:
         df_alpha = f.main_get_alphavantage(parameters_setup)
+
+    print(f'Finish data retreival from Alpha Vantage')
 
     
     # The date range will be updated based on alpha vantage dataset 

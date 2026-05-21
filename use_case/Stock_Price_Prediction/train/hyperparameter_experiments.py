@@ -8,11 +8,11 @@ from pathlib import Path
 
 
 TARGET_COL = 'steps_ahead'
-MASTER_PATH = 'price_predict_parameters.csv'
+MASTER_PATH = 'hyperparameter_master.csv'
 CP_PATH = '../checkpoints/experiment'
 
 start = '2025-01-01'
-end = '2025-12-01'
+end = '2026-04-01'
 data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
 
 
@@ -42,13 +42,16 @@ def _return_int_values(start, end):
 # ================================================================================================
 
 def get_incremental_values(start, end, incremental_add):
+    
     return_int = _return_int_values(start, end)
     values = []
     current = float(start)
     end = float(end)
     incremental_add = float(incremental_add)
+    
     # Use a tolerance to avoid floating point issues
     tol = 1e-8
+    
     while current <= end + tol:
         values.append(int(round(current)) if return_int else current)
         current += incremental_add
@@ -60,14 +63,17 @@ def get_incremental_values(start, end, incremental_add):
 # ================================================================================================
 
 def get_group_values(start, end, num_of_group):
+    
     return_int = _return_int_values(start, end)
     start = float(start)
     end = float(end)
     num_of_group = int(num_of_group)
+    
     if num_of_group < 2:
         return [int(round(start)), int(round(end))] if return_int else [start, end]
     step = (end - start) / (num_of_group - 1)
     values = [start + i * step for i in range(num_of_group)]
+    
     return [int(round(v)) for v in values] if return_int else values
 
 

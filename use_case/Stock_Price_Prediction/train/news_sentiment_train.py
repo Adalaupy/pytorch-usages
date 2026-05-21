@@ -27,10 +27,8 @@ from collections import Counter
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 from models.lstm_model import LSTM_Model
-from utils import EarlyStopping, get_device,EpochTrainer,tokenize,encode_text, NLP_data_cleaning
-from datasets import load_dataset
-import kagglehub
-from pathlib import Path
+from utils import EarlyStopping, get_device,EpochTrainer,tokenize,encode_text, NLP_data_cleaning, hugface_download, text_kaggle_download
+
 import pandas as pd
 
 
@@ -49,36 +47,6 @@ EVAL_METHOD = 'Accuracy'
 BIDIRECTIONAL = True    
 MODEL_OUTPUT_FILE = "../checkpoints/sentiment_checkpoint.pt"
 
-# ================================================================================================
-# Function to download from huggingface
-# ================================================================================================
-
-def hugface_download():
-    
-    dataset = load_dataset( SOURCE_1 , split="train")    
-    
-    df = pd.DataFrame({
-        'text': [row['text'] for row in dataset],
-        'label': [row['label'] for row in dataset]
-    })   
-
-    return df
-
-
-# ================================================================================================
-# Function to download from Kaggle
-# ================================================================================================
-
-def kaggle_download():
-    
-    dataset_path = kagglehub.dataset_download(SOURCE_2)
-    csv_path = next(Path(dataset_path).rglob("*.csv"))
-
-    df = pd.read_csv(csv_path)
-    
-    df.columns = ['text','label']
-    
-    return df
 
 
 # ================================================================================================
@@ -114,10 +82,10 @@ def solve_data_imbalance(df):
 
 def main_download():
     
-    dataset1 = hugface_download()
+    dataset1 = hugface_download(SOURCE_1)
     dataset1['source'] = 'twitter'
     
-    dataset2 = kaggle_download()
+    dataset2 = text_kaggle_download(SOURCE_2)
     dataset2['source'] = 'kaggle'
     
 
