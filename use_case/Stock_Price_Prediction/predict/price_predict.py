@@ -11,7 +11,7 @@ from utils import get_checkpoint, build_seq, plus_bus_day, result_evaluation, pl
 ckpt_path = '../checkpoints/lstm_checkpoint.pt'
 ticker = 'VOO'
 start = '2025-01-01'
-end   = '2025-05-01'
+end   = '2025-06-01'
 data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
 
 # ================================================================================================

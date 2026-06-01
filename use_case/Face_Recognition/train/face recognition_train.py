@@ -11,6 +11,7 @@ from utils import (
     build_augmentation_transform,
     get_image_dataset,
     kaggle_download,
+    sample_image_dataset,
 
 )
 import torch
@@ -29,8 +30,9 @@ POOL_SIZE = 2
 # Get data, Detect Face(if needed) + Resize image + Get number of labels
 # ================================================================================================
 
-def init_data_transform(kaggle_path, input_size, isFace):
-    
+
+def init_data_transform(data_path, data_source, input_size, isFace):
+
     # Prepare Initial image transform
     stats_steps = []
     if isFace:
@@ -40,22 +42,54 @@ def init_data_transform(kaggle_path, input_size, isFace):
         ResizeKeepRatioPad(input_size, fill=0),
         transforms.ToTensor(),
     ])
-
     stats_transform = transforms.Compose(stats_steps)
 
 
-     # Get Data from kaggle
-    local_path = kaggle_download(kaggle_path, enter_first_folder=True)
 
-   
+    # Get Data from source
+    if data_source == 'kaggle':
+        local_path = sample_image_dataset(
+            kaggle_download(data_path, enter_first_folder=True),
+            max_folders = 5,
+            max_files_per_folder = 80,
+        )
+    elif data_source == 'local':
+        local_path = data_path
+
+
     full_dataset = get_image_dataset(local_path, stats_transform)
+    print('\t- Download data to local')
 
+
+
+    # Get all labels and count number of output
     class_names = full_dataset.classes
     num_output = len(class_names)
 
+    print('\t- apply Initial Image transformation to data')
+
+    return full_dataset, class_names, num_output, local_path
 
 
-    return full_dataset, class_names, num_output
+# ================================================================================================
+# Handle dataset split 
+# ================================================================================================
+
+def split_data(full_dataset):
+    
+
+    test_cnt  = int(TEST_SIZE * len(full_dataset) )
+    train_cnt = len(full_dataset) - test_cnt
+
+    train_dataset, test_dataset  = random_split(    
+        full_dataset, 
+        [train_cnt,test_cnt],
+        generator=torch.Generator().manual_seed(42)
+    )
+
+    print('\t- Split data into training and testing')
+    return train_dataset, test_dataset
+
 
 
 # ================================================================================================
@@ -103,34 +137,15 @@ def augmentation( train_dataset, test_dataset, input_size, isFace, batch_size):
 
 
     train_dataset.dataset.transform = transforms.Compose( train_transform )
-    train_dataset.dataset.transform = transforms.Compose( test_transform  )
+    test_dataset.dataset.transform = transforms.Compose( test_transform  )
 
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader  = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-
-    return channel_size, preprocess_config, train_loader, test_loader
-
-
-# ================================================================================================
-# Handle dataset split 
-# ================================================================================================
-
-def split_data(full_dataset):
+    print('\t- Image augmentation on training and testing data respectively')
     
-
-    test_cnt  = int(TEST_SIZE * len(full_dataset) )
-    train_cnt = len(full_dataset) - test_cnt
-
-    train_dataset, test_dataset  = random_split(    
-        full_dataset, 
-        [train_cnt,test_cnt],
-        generator=torch.Generator().manual_seed(42)
-    )
-
-
-    return train_dataset, test_dataset
+    return channel_size, preprocess_config, train_loader, test_loader
 
 
 # ================================================================================================
@@ -138,24 +153,24 @@ def split_data(full_dataset):
 # ================================================================================================
 
 def main_face_recognition(
-     batch_size   = 40
+     batch_size   = 20
     ,epochs       = 20
     ,hidden_size  = 16
     ,stride       = 1
     ,input_size   = (100, 100)
     ,patience     = 5
-    ,lr           = 0.001
+    ,lr           = 0.002
     ,isFace       = True
-    ,kaggle_data_path = "vishesh1412/celebrity-face-image-dataset"
-    ,output_path = '../checkpoints/face_recognition_checkpoint.pt'
+    ,data_source  = 'local'
+    ,data_path    =  '../data/train' #"vishesh1412/celebrity-face-image-dataset"
+    ,output_path  = '../checkpoints/face_recognition_checkpoint.pt'
 ):
 
     # Define device
-    device = get_device()
-    
+    device = get_device()    
 
     # Get data
-    full_dataset, class_names, num_output = init_data_transform(kaggle_data_path, input_size, isFace)
+    full_dataset, class_names, num_output, train_local_path = init_data_transform(data_path,data_source , input_size, isFace)
     
     # Split data into training, testing
     train_dataset, test_dataset = split_data(full_dataset)
@@ -178,23 +193,26 @@ def main_face_recognition(
     }
 
 
-
     # Prepare model stuff
     model = CNN_Model(**model_config).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr = lr)
     criterion = nn.CrossEntropyLoss()
     early_stopping = EarlyStopping(
         patience=patience,
-        path=f"../checkpoints/{output_path}.pt",
+        path = output_path,
         checkpoint_data={
             "model_config": model_config,
             "preprocess_config": preprocess_config,
             "class_names": class_names,
+            "train_local_path": train_local_path,
+            "isFace" : isFace,
+
         },
     )
-
+    print('\t- Got model setup')
 
     # Start training
+    print('\t- Start training')
     epoch_trainer = EpochTrainer(
         model = model,
         early_stopping = early_stopping,
@@ -220,3 +238,7 @@ def main_face_recognition(
             print("Early stopping triggered! Training stopped.")
             
             break
+        
+
+# Testing
+main_face_recognition()
