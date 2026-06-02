@@ -1,87 +1,122 @@
 # PyTorch Usages
 
-> **Work in Progress** — This project is still actively being developed. Content, models, and use cases are subject to change.
+Work-in-progress playground for building and testing PyTorch models across multiple practical use cases.
 
-## Purpose
+## Current Status
 
-This project aims to build a foundation for experimenting with different neural network models using PyTorch. It serves as a learning and reference base for model building, training, and applying models to real-world use cases.
+Implemented and actively used:
 
-## Project Structure
+- Core models: `Simple`, `LSTM`, `CNN`
+- Shared utility layer in `utils/`
+- Use cases:
+	- `Stock_Price_Prediction`
+	- `Face_Recognition`
+- Both script and notebook workflows are present in the repo
 
-```
+## Repository Layout
+
+```text
 pytorch-usages/
-├── models/          # Core model definitions
-├── utils/           # Shared utility functions
-├── train_sample/    # Training notebooks
-├── predict_sample/  # Prediction notebooks
-├── use_case/        # Applied use cases
-└── data/            # Datasets
+|- models/                         # model definitions
+|- utils/                          # reusable helpers (train/image/text/device/dataset)
+|- use_case/
+|  |- Stock_Price_Prediction/
+|  |  |- train/
+|  |  |- predict/
+|  |  |- financial_data/
+|  |  |- constant/
+|  |- Face_Recognition/
+|     |- train/
+|     |- predict/
+|     |- data/
+|- train_sample/                   # training notebooks
+|- predict_sample/                 # prediction notebooks
+|- requirements.txt
+|- pyproject.toml
 ```
 
 ## Models
 
-Located in the `models/` folder. The following model architectures are available:
-
-| Model | File | Description |
+| Model | File | Typical use |
 |---|---|---|
-| Simple (Feedforward) | `simple_model.py` | Basic fully connected neural network |
-| LSTM | `lstm_model.py` | Long Short-Term Memory network for sequential data |
-| CNN | `cnn_model.py` | Convolutional Neural Network for image data |
+| Simple feedforward | `models/simple_model.py` | baseline tabular/text tasks |
+| LSTM | `models/lstm_model.py` | sequence modeling |
+| CNN | `models/cnn_model.py` | image classification |
 
 ## Utilities
 
-Located in the `utils/` folder. Common helper functions shared across models and use cases:
+`utils/` currently includes:
 
-- `device.py` — Device setup (CPU / GPU selection)
-- `image_helper.py` — Image loading and preprocessing
-- `text_helper.py` — Text processing helpers
-- `train_helper.py` — Training loop and checkpoint utilities
-- `support_helper.py` — General support functions
+- `train_helper.py`: training loop, early stopping, evaluation helpers
+- `image_helper.py`: transforms, face detection, image statistics
+- `dataset_helper.py`: Kaggle/HuggingFace download helpers, image dataset utilities
+- `text_helper.py`: NLP cleanup and encoding helpers
+- `device.py`: checkpoint loading and device selection
+- `support_helper.py`: stock-related date and plotting helpers
 
-## Use Cases
-
-Located in the `use_case/` folder. Each use case applies one or more models to achieve a specific goal:
-
-| Use Case | Description |
-|---|---|
-| Stock Price Prediction | Predicts stock prices using financial data |
-
-## Requirements
-
-- Python 3.x
-- PyTorch
-- See `requirements.txt` for the full list of dependencies
-
-## Getting Started
+## Environment Setup
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Run main script
-python main.py
-```
-
-## After editing pyproject.toml
-
-If you update or create `pyproject.toml`, install your project in editable mode:
-
-```bash
 pip install -e .
 ```
 
-Or, if you use Poetry:
+Python version: `>=3.10` (from `pyproject.toml`).
+
+## Run Examples
+
+### 1) Stock Price Prediction
+
+Train:
 
 ```bash
-poetry install
+python use_case/Stock_Price_Prediction/train/price_predict_train.py
 ```
 
-## Hyperparameter Search
+Predict:
 
-To automatically search for the best combination of parameters, you can run:
+```bash
+python use_case/Stock_Price_Prediction/predict/price_predict.py
+```
+
+Hyperparameter experiment:
 
 ```bash
 python use_case/Stock_Price_Prediction/train/hyperparameter_experiments.py
 ```
-This will execute a grid search and print the best results found.
+
+### 2) News Sentiment (Stock Use Case)
+
+Sentiment analysis is one important element for better stock price prediction because it reflects market reaction to news and events.
+
+Train:
+
+```bash
+python use_case/Stock_Price_Prediction/train/news_sentiment_train.py
 ```
+
+Predict:
+
+```bash
+python use_case/Stock_Price_Prediction/predict/news_sentiment_predict.py
+```
+
+### 3) Face Recognition
+
+Train:
+
+```bash
+python "use_case/Face_Recognition/train/face recognition_train.py"
+```
+
+Predict:
+
+```bash
+python use_case/Face_Recognition/predict/face_recognition_predict.py
+```
+
+## Notes
+
+- Some workflows support Kaggle source download via `kagglehub`.
+- Face recognition utilities support optional face detection preprocessing.
+- Sample notebooks are available under `train_sample/` and `predict_sample/`.
