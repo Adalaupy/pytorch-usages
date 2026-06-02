@@ -11,7 +11,7 @@ def consolidate_data(
     ticker = "VOO"
     ,Is_Batch_Run = True
     ,start  = "2025-01-01"
-    ,end    = "2025-12-30"
+    ,end    = "2026-06-30"
     ,year   = 2026
     ,topic =  ['earnings', 'financial_markets' , 'economy_fiscal', 'economy_monetary' , 'economy_macro', 'energy_transportation', 'finance']
     ,day_delay = 2
@@ -85,10 +85,11 @@ def consolidate_data(
 
     print(f"Merge 2 datasets")
 
-    df_merged.to_csv(f'data/main_{min_date}_{max_date}_delay{day_delay}.csv' ,index = False)
+    saved_csv_name = f'data/main_{min_date}_{max_date}_delay{day_delay}.csv'
+    df_merged.to_csv( saved_csv_name ,index = False)
 
 
-    return df_merged
+    return df_merged,saved_csv_name
 
 
 

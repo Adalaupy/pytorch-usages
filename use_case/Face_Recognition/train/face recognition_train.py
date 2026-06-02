@@ -238,7 +238,4 @@ def main_face_recognition(
             print("Early stopping triggered! Training stopped.")
             
             break
-        
-
-# Testing
-main_face_recognition()
+    

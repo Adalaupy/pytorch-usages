@@ -171,9 +171,19 @@ def result_evaluation( eval_method, all_predict, all_actual):
 
 
     elif eval_method == 'RMSE':
-            
-        all_predict = np.asarray(all_predict, dtype=float)
-        all_actual = np.asarray(all_actual, dtype=float)
+        if len(all_predict) == 0 or len(all_actual) == 0:
+            raise ValueError("RMSE evaluation received empty prediction/actual lists")
+
+        if isinstance(all_predict[0], torch.Tensor):
+            all_predict = torch.cat([p.reshape(-1) for p in all_predict]).detach().cpu().numpy()
+        else:
+            all_predict = np.concatenate([np.asarray(p, dtype=float).reshape(-1) for p in all_predict])
+
+        if isinstance(all_actual[0], torch.Tensor):
+            all_actual = torch.cat([a.reshape(-1) for a in all_actual]).detach().cpu().numpy()
+        else:
+            all_actual = np.concatenate([np.asarray(a, dtype=float).reshape(-1) for a in all_actual])
+
         rmse = np.sqrt(np.mean((all_actual - all_predict) ** 2))
        
         result = { "RMSE" : rmse }

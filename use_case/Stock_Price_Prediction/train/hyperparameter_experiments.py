@@ -12,7 +12,7 @@ MASTER_PATH = 'hyperparameter_master.csv'
 CP_PATH = '../checkpoints/experiment'
 
 start = '2025-01-01'
-end = '2026-04-01'
+end = '2026-06-02'
 data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
 
 
@@ -180,8 +180,10 @@ def compare_model(seq_len, values , steps_ahead ):
         # get the result from above trained model
         print(f"{checkpoint_name} : ")
         eval = next(iter( main_price_predict( data_path=data_path, ckpt_path = checkpoint_path, isEval = True, IsGraph = True, show_graph = True)[0].values() ))
+        
         print(eval)
         print('-' * 100)
+
         if best_id == None:            
       
             best_id = id
@@ -263,6 +265,5 @@ def main_experiment(steps_ahead):
 # ================================================================================================
 # Testing
 # ================================================================================================
-       
 
 # full_best_result = main_experiment(10)

@@ -12,8 +12,7 @@ def get_device(prefer_mps: bool = False) -> torch.device:
 
     if prefer_mps and hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         return torch.device("mps")
-    
-    print('\t- Got Device')
+
 
     return torch.device("cpu")
 
@@ -38,12 +37,12 @@ def get_checkpoint(path):
 
     if checkpoint_path is None:
         raise FileNotFoundError(
-            "Could not find sentiment checkpoint. Tried: "
+            "Could not find checkpoint. Tried: "
         )
 
 
     checkpoint = torch.load(checkpoint_path, map_location  = device)
 
-    print('\t- Got previous trained checkpoint')
+    # print('\t- Got previous trained checkpoint')
 
     return checkpoint, device

@@ -8,10 +8,10 @@ from utils import get_checkpoint, build_seq, plus_bus_day, result_evaluation, pl
 # Parameters
 # ================================================================================================
 
-ckpt_path = '../checkpoints/lstm_checkpoint.pt'
+ckpt_path = '../checkpoints/experiment/10ahead_p(5)_id48.pt'
 ticker = 'VOO'
 start = '2025-01-01'
-end   = '2025-06-01'
+end   = '2026-06-01'
 data_path = f'../financial_data/data/main_{start.replace('-' , '')}_{end.replace('-' , '')}_delay2.csv'
 
 # ================================================================================================
@@ -91,6 +91,9 @@ def get_predict_price( X, y ):
 # ================================================================================================
 
 def main_price_predict(data_path = data_path , ckpt_path = ckpt_path, isEval = False, IsGraph = False, show_graph = False, plot_len = None):
+
+    if show_graph:
+        IsGraph = True
 
     global device
     global model
