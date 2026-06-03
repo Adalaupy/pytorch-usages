@@ -1,4 +1,4 @@
-import alpha_vantage as f
+import use_case.Stock_Price_Prediction.financial_data.alpha_vantage as f
 import pandas as pd
 from utils import  get_yf_data,plus_bus_day
 
@@ -9,31 +9,16 @@ from utils import  get_yf_data,plus_bus_day
 
 def consolidate_data(
     ticker = "VOO"
-    ,Is_Batch_Run = True
     ,start  = "2025-01-01"
     ,end    = "2026-06-30"
-    ,year   = 2026
+    ,years   =[2025,2026]
     ,topic =  ['earnings', 'financial_markets' , 'economy_fiscal', 'economy_monetary' , 'economy_macro', 'energy_transportation', 'finance']
     ,day_delay = 2
 
 ):
     
-    date_from = start.replace('-','')
-    date_to   = end.replace('-','')
-    parameters_setup = {
-        "topics"   : topic,
-        "ticker"   : ticker,
-        "time_from": f"{date_from}T0000",
-        "time_to"  : f"{date_to}T2359",   
-    }
-        
-
     # Get data from alpha vantange
-    if Is_Batch_Run:
-        df_alpha = f.main_batch_api(ticker, year)
-    else:
-        df_alpha = f.main_get_alphavantage(parameters_setup)
-
+    df_alpha = f.main_batch_api(topic, ticker, years)
     print(f'Finish data retreival from Alpha Vantage')
 
     
@@ -54,6 +39,7 @@ def consolidate_data(
 
     print(f'Get next {day_delay} business day')
 
+
     # add is_include_weekend and group_row_count columns to indicate weekend data
     sum_cols = [col for col in column_list if col not in ["date", "date_delay"]]
 
@@ -71,7 +57,6 @@ def consolidate_data(
 
     # Get data from yFinance
     df_price = get_yf_data( ticker , start , end)
-
 
     
     # Join data source

@@ -13,11 +13,12 @@ import re
 # ================================================================================================
 # User define parameter list
 # ================================================================================================
-DATA_FOLDER = 'data/'
+
+DATA_FOLDER = str(Path(__file__).resolve().parent / 'data') + os.sep
+
 base_url = f"https://www.alphavantage.co/query?limit=1000&sort=RELEVANCE&function=NEWS_SENTIMENT"
 date_from = '20250101'
 date_to   = '20251230'
-
 
 
 parameters_setup = {
@@ -34,6 +35,11 @@ env_var_list = ['ALPHA_VANTAGE1', 'ALPHA_VANTAGE2']
 API_Key_list = [os.getenv(var) for var in env_var_list]
 
 
+
+# ================================================================================================
+# Ensure the target directory exist
+# ================================================================================================
+
 def ensure_data_directories():
     data_path = Path(DATA_FOLDER)
     (data_path / 'alpha_vantage').mkdir(parents=True, exist_ok=True)
@@ -42,6 +48,7 @@ def ensure_data_directories():
 # ================================================================================================
 # Union all saved news text file
 # ================================================================================================
+
 def union_batch():
     
     full_list = []
@@ -57,9 +64,6 @@ def union_batch():
             data = get_txt_data(file_path)
 
             full_list.append(data)
-
-    # full_list = list(set(full_list))
-
     return full_list
 
     
@@ -140,14 +144,11 @@ def get_news_list( API_list ):
 # Function to save API result to .txt file
 # ================================================================================================
 
-
 def save_data(file_name, data):
     
     with open(file_name, 'w') as f:
         
         json.dump(data, f)
-
-
 
 # ================================================================================================
 # Function to get news data from a txt file
@@ -202,8 +203,7 @@ def get_news_sentiment( data ):
 # Function to organize data for next step
 # ================================================================================================
 
-def data_organizig( data, labels, parameters ):
-    
+def data_organizig( data, labels, topic_list ):
     
     # List of dict to dataframe 
     df = pd.DataFrame(data)
@@ -224,7 +224,7 @@ def data_organizig( data, labels, parameters ):
 
 
     # Get full columns List to ensure table schema consistency
-    t_List = parameters['topics']
+    t_List = topic_list
     p_List = [v for k,v in labels.items()]
     full_column_list = [f"{t}_{p}" for t in t_List for p in p_List]
 
@@ -256,101 +256,63 @@ def print_row_cnt(df : pd.DataFrame, gpby_cols: list):
     return df_cnt
 
 
-
 # ================================================================================================
-# 1.0: Get Data regularly
+# main: Call API by batch due to API limitation
 # ================================================================================================
 
-def main_get_alphavantage( parameters_setup = parameters_setup):
+def main_batch_api(topic_list = parameters_setup['topics'], ticker = "VOO" , years = 2025):    
 
     ensure_data_directories()
-    
 
-    # 1. Get parameter URL
-    API_param_list = get_api_parameters(API_Key_list[0], parameters_setup)
-    
-
-    # 2. Get News from API
-    try:        
-        news_list = get_news_list( API_param_list )
-    except:
-        raise Exception('Failed to get news data from API')
-
-    # 3. Save to txt
-    file_name = f'news_{date_from}_{date_to}.txt'
-    file_path = f"{DATA_FOLDER}alpha_vantage/{file_name}"
-    save_data(file_path, news_list)
-
-
-    # 4. Apply sentiment analysis
-    predict_result_list, label_map = get_news_sentiment( news_list )
-
-
-    # 5. Organize data
-    df, pt = data_organizig( predict_result_list, label_map, parameters_setup )
-
-
-    # Step 6: Check Data count
-    gpby_cols = [df['topic'], df["date"].dt.to_period("M")]
-    print_row_cnt(df, gpby_cols)
-
-
-
-    return pt
-
-
-# ================================================================================================
-# 2.0: Call API by batch due to API limitation
-# ================================================================================================
-
-def main_batch_api(ticker = "VOO" , year = "2025"):    
-
-    ensure_data_directories()
-    
+    if isinstance(years, (str, int)):
+        years = [years]
 
     # --------------------------------------------------------------------------------
     # Function to prepare list of parameters, urls, and file name
     # --------------------------------------------------------------------------------
+    
     def get_batch_param( topic_list):
-        
+                
         batch_item_list = [] 
         count = 1
-
-
-        # For each month
-        for m in range(12):
-            
-            from_month = m + 1
-            to_month   = 12 if from_month == 12 else from_month + 1
-            to_day     = 30 if from_month == 12 else 1
-            from_date  = f'{year}{str(from_month).zfill(2)}01T0000'
-            to_date    = f'{year}{str(to_month).zfill(2)}{str(to_day).zfill(2)}T2359'
-
-
-            # For each topic
-            for topic in topic_list:
+       
+        # For each year
+        for year in years:
+            # For each month
+            for m in range(12):
                 
-                idx = count % 2
-                API = API_Key_list[idx]
+                from_month = m + 1
+                to_month   = 12 if from_month == 12 else from_month + 1
+                to_day     = 30 if from_month == 12 else 1
+                from_date  = f'{year}{str(from_month).zfill(2)}01T0000'
+                to_date    = f'{year}{str(to_month).zfill(2)}{str(to_day).zfill(2)}T2359'
 
-                parameter = f"&ticker={ticker}&time_from={from_date}&time_to={to_date}&topics={topic}"
-                url = f"{base_url}&apikey={API}{parameter}"
 
-                file_name = f'news_{year}{str(from_month).zfill(2)}_{year}{str(to_month).zfill(2)}{str(to_day).zfill(2)}_{topic}.txt'
+                # For each topic
+                for topic in topic_list:
+                    
+                    idx = count % 2
+                    API = API_Key_list[idx]
 
-                batch_item_list.append( ( file_name,  url ,topic) )
+                    parameter = f"&ticker={ticker}&time_from={from_date}&time_to={to_date}&topics={topic}"
+                    url = f"{base_url}&apikey={API}{parameter}"
 
-                count += 1
+                    file_name = f'news_{year}{str(from_month).zfill(2)}_{year}{str(to_month).zfill(2)}{str(to_day).zfill(2)}_{topic}.txt'
+
+                    batch_item_list.append( ( file_name,  url ,topic) )
+
+                    count += 1
 
         return batch_item_list
-    
+        
 
     # --------------------------------------------------------------------------------
     # Function to handle API call
     # --------------------------------------------------------------------------------
+    
     def handle_batch( batch_item ,fail_cnt):
         
-        file_name = f'{DATA_FOLDER}alpha_vantage/{batch_item[0]}'
+        file_name = f'{DATA_FOLDER}alpha_vantage/{str(batch_item[0])}'
         url = batch_item[1]
         topic = batch_item[2]
         isExist = Path(file_name).exists()
@@ -376,14 +338,11 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
         return fail_cnt
 
 
-
-
     # --------------------------------------------------------------------------------
     # Start to run
     # --------------------------------------------------------------------------------
-    
+
     # Step 1: Get list of parameters for API
-    topic_list = parameters_setup['topics']
     batch_item_list = get_batch_param( topic_list)
 
 
@@ -409,7 +368,7 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
     predict_result_list, label_map = get_news_sentiment( full_list )
 
     # Step 5: Organize data
-    df, pt = data_organizig( predict_result_list, label_map, parameters_setup )
+    df, pt = data_organizig( predict_result_list, label_map, topic_list )
     
 
     # Step 6: Check Data count
