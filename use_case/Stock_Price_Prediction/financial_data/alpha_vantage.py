@@ -40,6 +40,30 @@ def ensure_data_directories():
 
 
 # ================================================================================================
+# Union all saved news text file
+# ================================================================================================
+def union_batch():
+    
+    full_list = []
+    
+    reg = re.compile(r'news_[0-9]+_[0-9]+_.+\.txt')
+    file_list = os.listdir(f'{DATA_FOLDER}alpha_vantage/')
+
+    for file in file_list:
+        
+        if reg.match(file):
+            
+            file_path = f'{DATA_FOLDER}alpha_vantage/{file}'
+            data = get_txt_data(file_path)
+
+            full_list.append(data)
+
+    # full_list = list(set(full_list))
+
+    return full_list
+
+    
+# ================================================================================================
 # Prepare API URL parameters
 # ================================================================================================
 
@@ -283,6 +307,10 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
 
     ensure_data_directories()
     
+
+    # --------------------------------------------------------------------------------
+    # Function to prepare list of parameters, urls, and file name
+    # --------------------------------------------------------------------------------
     def get_batch_param( topic_list):
         
         batch_item_list = [] 
@@ -317,7 +345,9 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
         return batch_item_list
     
 
-
+    # --------------------------------------------------------------------------------
+    # Function to handle API call
+    # --------------------------------------------------------------------------------
     def handle_batch( batch_item ,fail_cnt):
         
         file_name = f'{DATA_FOLDER}alpha_vantage/{batch_item[0]}'
@@ -336,42 +366,22 @@ def main_batch_api(ticker = "VOO" , year = "2025"):
             
             except:
                 
-                fail_cnt += 1
-                
-                print(f"Failed - {file_name} !")
-
-                
+                fail_cnt += 1                
+                print(f"Failed - {file_name} !")               
 
         else:
             
             print(f"Exist - {file_name} !")
 
-
         return fail_cnt
 
 
-    def union_batch():
-        
-        full_list = []
-        
-        reg = re.compile(r'news_[0-9]+_[0-9]+_.+\.txt')
-        file_list = os.listdir(f'{DATA_FOLDER}alpha_vantage/')
 
-        for file in file_list:
-            
-            if reg.match(file):
-                
-                file_path = f'{DATA_FOLDER}alpha_vantage/{file}'
-                data = get_txt_data(file_path)
 
-                full_list.append(data)
+    # --------------------------------------------------------------------------------
+    # Start to run
+    # --------------------------------------------------------------------------------
     
-        # full_list = list(set(full_list))
-    
-        return full_list
-
-
-
     # Step 1: Get list of parameters for API
     topic_list = parameters_setup['topics']
     batch_item_list = get_batch_param( topic_list)
