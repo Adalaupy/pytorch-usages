@@ -32,8 +32,8 @@ Recommended approach:
 - Compute user-user similarity in latent space.
 - Candidate source: anime watched/rated by top-N similar users.
 
-Input (you proposed):
-- user_id
+Input:
+- user_key
 - watched percentage
 - average rating by type/genre
 
@@ -43,7 +43,7 @@ Output:
 
 Important filtering rules:
 - Exclude items already watched by target user.
-- Keep only high-quality candidates (for example rating >= threshold).
+- Keep only high-quality candidates using real votes only (rating != -1), then apply rating threshold.
 - Downweight globally over-popular items to reduce boring recommendations.
 
 ---
@@ -96,11 +96,11 @@ Your idea:
 
 Recommended approach:
 - Use your LSTM model as next-item predictor.
-- Input sequence = user's time-ordered watch/rating history.
+- Input sequence = user's interaction order from user_event_seq (pseudo-order, not real timestamp).
 - Target = next anime_id.
 
 Input:
-- Ordered sequence of anime interactions
+- Ordered sequence of anime_key interactions by user_event_seq
 
 Output:
 - Probability distribution over anime catalog
@@ -109,28 +109,32 @@ Output:
 Role in ensemble:
 - Captures short-term intent and session-like behavior
 
+Current data caveat:
+- user_event_seq is generated from source row order, so this is a proxy sequence model.
+- Treat this model as optional/low-weight until real timestamps are available.
+
 ---
 
 ### Model 5: Predict Click / Not Click
-Your idea:
-- Predict click probability for user U and anime A.
+Current practical version with existing data:
+- Predict real-vote probability proxy for user U and anime A.
+- Proxy label: 1 if rating != -1, else 0.
 
 Recommended approach:
-- If click context is sequential (session/order matters), LSTM is acceptable.
-- If click context is mostly static features, a binary classifier is usually simpler and stronger (Logistic Regression, XGBoost, MLP).
+- Binary classifier is usually the simplest and strongest baseline (Logistic Regression, XGBoost, MLP).
 
 Practical decision:
-- Keep your LSTM version first if you want model reuse.
-- Later compare with a simpler binary model as baseline.
+- Start with the proxy binary model first.
+- Replace this with true click modeling later only if impression/click logs are available.
 
 Input:
-- User features, anime features, context features (optional: device/time/source)
+- User features, anime features (context features unavailable in current data)
 
 Output:
-- Click probability P(click | U, A, context)
+- Proxy probability P(real_vote | U, A)
 
 Role in ensemble:
-- Good for ranking by engagement probability
+- Useful as an engagement intent proxy with current data.
 
 ---
 
@@ -210,7 +214,7 @@ This prevents model-only output from becoming repetitive.
 ## 8) Final Return Format
 For each user, return:
 
-- Ranked anime_id list (Top-K)
+- Ranked anime_key list (Top-K)
 - Final blended score
 - Optional reason tag from strongest contributing model
 
@@ -230,7 +234,7 @@ Offline metrics:
 - NDCG@K
 - MAP@K
 - RMSE or MAE for rating model only
-- AUC/LogLoss for click model
+- AUC/LogLoss for proxy real-vote model
 
 Online metrics (A/B test):
 - CTR
@@ -249,10 +253,10 @@ Phase B:
 - Add Model 3 (rating prediction)
 
 Phase C:
-- Add Model 4 (next-anime LSTM)
+- Add Model 4 (next-anime LSTM on pseudo sequence user_event_seq)
 
 Phase D:
-- Add Model 5 (click model), compare LSTM vs simpler binary baseline
+- Add Model 5 proxy model (real-vote binary), compare classifiers
 
 Phase E:
 - Tune weights and business rules using offline metrics, then A/B test
