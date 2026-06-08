@@ -100,24 +100,13 @@ def get_data_indexing():
     return df_anime, df_rating, type_ref_cols, genre_ref_cols
 
 
-# ================================================================================================
-# Interim table: Build canonical interaction event table from indexed rating data.
-# ================================================================================================
+def _compute_user_events(df_rating):
 
-def user_events_df(
-    df_rating,
-):
-
-    # Select core interaction fields and normalize key types.
     events = df_rating[[USER_KEY_COL, ANIME_KEY_COL, RATING_COL]].copy()
     events = events.dropna(subset=[USER_KEY_COL, ANIME_KEY_COL])
     events[USER_KEY_COL] = events[USER_KEY_COL].astype(int)
     events[ANIME_KEY_COL] = events[ANIME_KEY_COL].astype(int)
-
-    # Keep a single numeric rating column.
     events[RATING_COL] = pd.to_numeric(events[RATING_COL], errors='coerce').astype(float)
-
-    # Create fake per-user sequence from original row order.
     events['user_event_seq'] = events.groupby(USER_KEY_COL).cumcount() + 1
 
     cols = [
@@ -129,56 +118,33 @@ def user_events_df(
     return events[cols].reset_index(drop=True)
 
 
-# ================================================================================================
-# Interim table: Build anime content table with cleaned numeric fields and one-hot encoded labels.
-# ================================================================================================
+def _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols):
 
-def anime_content_ohe_df(
-    df_anime,
-    type_ref_cols,
-    genre_ref_cols,
-):
-  
-    # Keep required base fields and standardize numeric columns.
     content = df_anime[[ANIME_KEY_COL, TYPE_COL, GENRE_COL, EPISODES_COL, MEMBERS_COL, ANIME_META_RATING_SOURCE_COL]].copy()
-
     content[ANIME_KEY_COL] = content[ANIME_KEY_COL].astype(int)
     content['episodes_count'] = pd.to_numeric(content[EPISODES_COL], errors='coerce')
     content['members_count'] = pd.to_numeric(content[MEMBERS_COL], errors='coerce')
     content['anime_meta_rating'] = pd.to_numeric(content[ANIME_META_RATING_SOURCE_COL], errors='coerce')
 
-    # Build type one-hot columns aligned to the reference schema.
     type_series = content[TYPE_COL].fillna('unknown').astype(str).map(_sanitize_label)
     type_ohe = _series_to_ohe(type_series, 'is_type', type_ref_cols)
 
-    # Build genre one-hot columns aligned to the reference schema.
     genre_series = content[GENRE_COL].fillna('unknown').astype(str)
     genre_exploded = genre_series.str.split(r'\s*,\s*').explode().fillna('unknown').map(_sanitize_label)
     genre_ohe = _series_to_ohe(genre_exploded, 'is_genre', genre_ref_cols)
     genre_ohe = genre_ohe.groupby(level=0).max()
 
-    # Return final interim table 2 layout.
     base_cols = [ANIME_KEY_COL, 'episodes_count', 'members_count', 'anime_meta_rating']
     return pd.concat([content[base_cols], type_ohe, genre_ohe], axis=1).reset_index(drop=True)
 
 
-# ================================================================================================
-# Interim table: Build user profile stats from events and anime content features.
-# ================================================================================================
-
-def user_profile_stats_df(
-    df_user_event,
-    df_anime_ohe,
-    type_ref_cols,
-    genre_ref_cols,
-):
+def _compute_user_profile_stats(df_user_event, df_anime_ohe, type_ref_cols, genre_ref_cols):
 
     anime_key_col = ANIME_KEY_COL
     user_key_col = USER_KEY_COL
     real_rating_mask = df_user_event[RATING_COL].notna() & df_user_event[RATING_COL].ne(-1)
     rated_events = df_user_event[real_rating_mask]
 
-    # Compute base counts from interaction events.
     user_base = df_user_event.groupby(user_key_col, as_index=False).agg(
         n_watches_total=('anime_key', 'size'),
     )
@@ -188,7 +154,6 @@ def user_profile_stats_df(
     user_base = user_base.merge(user_rating_counts, on=user_key_col, how='left')
     user_base['n_ratings_total'] = user_base['n_ratings_total'].fillna(0).astype(int)
 
-    # Compute rating moments and user bias vs global mean.
     global_rating_mean = rated_events[RATING_COL].mean()
     user_rating_stats = rated_events.groupby(user_key_col, as_index=False).agg(
         user_avg_rating=(RATING_COL, 'mean'),
@@ -197,7 +162,6 @@ def user_profile_stats_df(
     user_rating_stats['user_bias_vs_global'] = user_rating_stats['user_avg_rating'] - global_rating_mean
     user_stats = user_base.merge(user_rating_stats, on=user_key_col, how='left')
 
-    # Join anime content flags and aggregate to user-level counts.
     flag_cols = genre_ref_cols + type_ref_cols
     events_with_keys = df_user_event[[user_key_col, anime_key_col]]
     watched_with_content = events_with_keys.merge(
@@ -213,7 +177,6 @@ def user_profile_stats_df(
     user_flag_counts = user_flag_counts.rename(columns=rename_map)
     user_stats = user_stats.merge(user_flag_counts, on=user_key_col, how='left')
 
-    # Convert count features into proportions per user.
     count_cols = [col for col in user_stats.columns if col.startswith('watch_cnt_')]
     user_stats[count_cols] = user_stats[count_cols].fillna(0)
     denom = user_stats['n_watches_total'].where(user_stats['n_watches_total'] > 0)
@@ -224,19 +187,12 @@ def user_profile_stats_df(
     return user_stats
 
 
-# ================================================================================================
-# Interim table: Build anime profile stats from events and anime content features.
-# ================================================================================================
+def _compute_anime_profile_stats(df_user_event, df_anime_ohe):
 
-def anime_profile_stats_df(
-    df_user_event,
-    df_anime_ohe,
-):
     anime_key_col = ANIME_KEY_COL
     real_rating_mask = df_user_event[RATING_COL].notna() & df_user_event[RATING_COL].ne(-1)
     rated_events = df_user_event[real_rating_mask]
 
-    # Compute base event counts per anime.
     anime_base = df_user_event.groupby(anime_key_col, as_index=False).agg(
         n_watches_total=(anime_key_col, 'size'),
     )
@@ -246,39 +202,26 @@ def anime_profile_stats_df(
     anime_base = anime_base.merge(anime_rating_counts, on=anime_key_col, how='left')
     anime_base['n_ratings_total'] = anime_base['n_ratings_total'].fillna(0).astype(int)
 
-    # Compute rating statistics per anime.
     anime_rating_stats = rated_events.groupby(anime_key_col, as_index=False).agg(
         rating_mean=(RATING_COL, 'mean'),
         rating_std=(RATING_COL, lambda x: x.std(ddof=0)),
         rating_median=(RATING_COL, 'median'),
     )
     anime_stats = anime_base.merge(anime_rating_stats, on=anime_key_col, how='left')
-
-    # Keep direct rating rate using raw counts.
     anime_stats['rating_rate'] = anime_stats['n_ratings_total'] / anime_stats['n_watches_total']
 
-    # Add selected numeric content features.
     content_numeric = df_anime_ohe[[anime_key_col, 'episodes_count', 'members_count']]
     anime_stats = anime_stats.merge(content_numeric, on=anime_key_col, how='left')
 
     return anime_stats
 
 
-# ================================================================================================
-# Interim table: Build global reference stats from events and anime content features.
-# ================================================================================================
+def _compute_global_reference_stats(df_user_event, df_anime_ohe, type_ref_cols, genre_ref_cols):
 
-def global_reference_stats_df(
-    df_user_event,
-    df_anime_ohe,
-    type_ref_cols,
-    genre_ref_cols,
-):
     anime_key_col = ANIME_KEY_COL
     real_rating_mask = df_user_event[RATING_COL].notna() & df_user_event[RATING_COL].ne(-1)
     rated_events = df_user_event[real_rating_mask]
 
-    # Compute global rating baselines.
     n_watches_total = len(df_user_event)
     n_ratings_total = len(rated_events)
     stats = {
@@ -287,7 +230,6 @@ def global_reference_stats_df(
         'global_rating_rate': (n_ratings_total / n_watches_total) if n_watches_total > 0 else 0.0,
     }
 
-    # Compute category-level mean ratings using anime type/genre OHE flags.
     flag_cols = genre_ref_cols + type_ref_cols
     rated_with_content = rated_events[[anime_key_col, RATING_COL]].merge(
         df_anime_ohe[[anime_key_col] + flag_cols],
@@ -312,32 +254,20 @@ def global_reference_stats_df(
     return pd.DataFrame([stats])
 
 
-# ================================================================================================
-# Interim table: Build anime relative stats versus global and category baselines.
-# ================================================================================================
+def _compute_anime_relative_stats(df_anime_profile_stats, df_anime_ohe, df_global_reference_stats, type_ref_cols, genre_ref_cols):
 
-def anime_relative_stats_df(
-    df_anime_profile_stats,
-    df_anime_ohe,
-    df_global_reference_stats,
-    type_ref_cols,
-    genre_ref_cols,
-):
     anime_key_col = ANIME_KEY_COL
     rel = df_anime_profile_stats[[anime_key_col, 'rating_mean', 'n_ratings_total']].copy()
     rel = rel.merge(df_anime_ohe[[anime_key_col] + genre_ref_cols + type_ref_cols], on=anime_key_col, how='left').fillna(0)
 
-    # Read one-row global references.
     global_mean = df_global_reference_stats.at[0, 'global_rating_mean']
     global_std = df_global_reference_stats.at[0, 'global_rating_std']
 
-    # Determine primary genre/type from OHE flags.
     genre_sum = rel[genre_ref_cols].sum(axis=1)
     type_sum = rel[type_ref_cols].sum(axis=1)
     rel['primary_genre_col'] = rel[genre_ref_cols].idxmax(axis=1).where(genre_sum > 0)
     rel['primary_type_col'] = rel[type_ref_cols].idxmax(axis=1).where(type_sum > 0)
 
-    # Map primary genre/type to corresponding global category mean columns.
     rel['primary_genre_mean'] = rel['primary_genre_col'].map(
         lambda col: df_global_reference_stats.at[0, f"mean_rating_genre_{col.replace('is_genre_', '', 1)}"] if pd.notna(col) else None
     )
@@ -345,7 +275,6 @@ def anime_relative_stats_df(
         lambda col: df_global_reference_stats.at[0, f"mean_rating_type_{col.replace('is_type_', '', 1)}"] if pd.notna(col) else None
     )
 
-    # Compute relative metrics.
     rel['delta_vs_global_mean'] = rel['rating_mean'] - global_mean
     rel['ratio_vs_global_mean'] = rel['rating_mean'] / global_mean
     rel['delta_vs_primary_genre_mean'] = rel['rating_mean'] - rel['primary_genre_mean']
@@ -356,7 +285,6 @@ def anime_relative_stats_df(
     else:
         rel['zscore_vs_global'] = 0.0
 
-    # Reliability weight from sample size.
     rel['confidence_weight'] = rel['n_ratings_total'] / (rel['n_ratings_total'] + 50)
 
     return rel[
@@ -373,34 +301,115 @@ def anime_relative_stats_df(
 
 
 # ================================================================================================
+# Interim table: Build canonical interaction event table from indexed rating data.
+# ================================================================================================
+
+def user_events_df():
+
+    _, df_rating, _, _ = get_data_indexing()
+    return _compute_user_events(df_rating)
+
+
+# ================================================================================================
+# Interim table: Build anime content table with cleaned numeric fields and one-hot encoded labels.
+# ================================================================================================
+
+def anime_content_ohe_df():
+
+    df_anime, _, type_ref_cols, genre_ref_cols = get_data_indexing()
+    return _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols)
+
+
+# ================================================================================================
+# Interim table: Build user profile stats from events and anime content features.
+# ================================================================================================
+
+def user_profile_stats_df():
+
+    df_anime, df_rating, type_ref_cols, genre_ref_cols = get_data_indexing()
+    df_user_event = _compute_user_events(df_rating)
+    df_anime_ohe = _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols)
+    return _compute_user_profile_stats(df_user_event, df_anime_ohe, type_ref_cols, genre_ref_cols)
+
+
+# ================================================================================================
+# Interim table: Build anime profile stats from events and anime content features.
+# ================================================================================================
+
+def anime_profile_stats_df():
+    df_anime, df_rating, type_ref_cols, genre_ref_cols = get_data_indexing()
+    df_user_event = _compute_user_events(df_rating)
+    df_anime_ohe = _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols)
+    return _compute_anime_profile_stats(df_user_event, df_anime_ohe)
+
+
+# ================================================================================================
+# Interim table: Build global reference stats from events and anime content features.
+# ================================================================================================
+
+def global_reference_stats_df():
+    df_anime, df_rating, type_ref_cols, genre_ref_cols = get_data_indexing()
+    df_user_event = _compute_user_events(df_rating)
+    df_anime_ohe = _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols)
+    return _compute_global_reference_stats(df_user_event, df_anime_ohe, type_ref_cols, genre_ref_cols)
+
+
+# ================================================================================================
+# Interim table: Build anime relative stats versus global and category baselines.
+# ================================================================================================
+
+def anime_relative_stats_df():
+    df_anime, df_rating, type_ref_cols, genre_ref_cols = get_data_indexing()
+    df_user_event = _compute_user_events(df_rating)
+    df_anime_ohe = _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols)
+    df_anime_profile_stats = _compute_anime_profile_stats(df_user_event, df_anime_ohe)
+    df_global_reference_stats = _compute_global_reference_stats(df_user_event, df_anime_ohe, type_ref_cols, genre_ref_cols)
+    return _compute_anime_relative_stats(df_anime_profile_stats, df_anime_ohe, df_global_reference_stats, type_ref_cols, genre_ref_cols)
+
+
+# ================================================================================================
+# Interim tables: Build all interim tables in one pass from fixed data source.
+# ================================================================================================
+
+def build_all_interim_tables():
+
+    df_anime, df_rating, type_ref_cols, genre_ref_cols = get_data_indexing()
+    df_user_event = _compute_user_events(df_rating)
+    df_anime_ohe = _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols)
+    df_user_profile_stats = _compute_user_profile_stats(df_user_event, df_anime_ohe, type_ref_cols, genre_ref_cols)
+    df_anime_profile_stats = _compute_anime_profile_stats(df_user_event, df_anime_ohe)
+    df_global_reference_stats = _compute_global_reference_stats(df_user_event, df_anime_ohe, type_ref_cols, genre_ref_cols)
+    df_anime_relative_stats = _compute_anime_relative_stats(df_anime_profile_stats, df_anime_ohe, df_global_reference_stats, type_ref_cols, genre_ref_cols)
+
+    return {
+        'df_anime': df_anime,
+        'df_rating': df_rating,
+        'type_ref_cols': type_ref_cols,
+        'genre_ref_cols': genre_ref_cols,
+        'df_user_event': df_user_event,
+        'df_anime_ohe': df_anime_ohe,
+        'df_user_profile_stats': df_user_profile_stats,
+        'df_anime_profile_stats': df_anime_profile_stats,
+        'df_global_reference_stats': df_global_reference_stats,
+        'df_anime_relative_stats': df_anime_relative_stats,
+    }
+
+
+# ================================================================================================
 # Testing
 # ================================================================================================
 
 if __name__ == '__main__':
     
-    df_anime, df_rating, type_ref_cols, genre_ref_cols = get_data_indexing()
-    df_user_event = user_events_df(df_rating)
-    df_anime_ohe = anime_content_ohe_df(df_anime, type_ref_cols=type_ref_cols, genre_ref_cols=genre_ref_cols)
-    df_user_profile_stats = user_profile_stats_df(
-        df_user_event,
-        df_anime_ohe,
-        type_ref_cols=type_ref_cols,
-        genre_ref_cols=genre_ref_cols,
-    )
-    df_anime_profile_stats = anime_profile_stats_df(df_user_event, df_anime_ohe)
-    df_global_reference_stats = global_reference_stats_df(
-        df_user_event,
-        df_anime_ohe,
-        type_ref_cols=type_ref_cols,
-        genre_ref_cols=genre_ref_cols,
-    )
-    df_anime_relative_stats = anime_relative_stats_df(
-        df_anime_profile_stats,
-        df_anime_ohe,
-        df_global_reference_stats,
-        type_ref_cols=type_ref_cols,
-        genre_ref_cols=genre_ref_cols,
-    )
+    tables = build_all_interim_tables()
+    df_anime = tables['df_anime']
+    df_rating = tables['df_rating']
+    df_user_event = tables['df_user_event']
+    df_anime_ohe = tables['df_anime_ohe']
+    df_user_profile_stats = tables['df_user_profile_stats']
+    df_anime_profile_stats = tables['df_anime_profile_stats']
+    df_global_reference_stats = tables['df_global_reference_stats']
+    df_anime_relative_stats = tables['df_anime_relative_stats']
 
     # Preview outputs.
     print(df_anime.head(2))

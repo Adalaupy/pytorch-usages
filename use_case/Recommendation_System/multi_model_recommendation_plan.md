@@ -10,36 +10,45 @@ This design matches your idea: no single model is perfect for all users, so we u
 ## 2) High-Level Architecture
 For each request (user U):
 
-1. Run Model 1 to Model 5 in parallel.
-2. Convert each model output into a comparable score scale.
-3. Apply business-weighted blending.
-4. Apply filtering/business rules.
-5. Return Top-K recommendations.
+1. Load precomputed offline candidates from Model 1 and Model 2.
+2. Score candidate pool using online models for this request.
+3. Convert each model output into a comparable score scale.
+4. Apply business-weighted blending.
+5. Apply filtering/business rules and return Top-K recommendations.
 
 Output = one final ranked list, with optional explainability tags (for example: "because similar users liked this").
+
+Runtime split (quick view):
+
+| Mode | Models | Notes |
+|---|---|---|
+| Offline full-set batch | Model 1, Model 2 | Precompute reusable artifacts/candidates |
+| Online per-request per-user | Model 4 (+ additional online scorers) | Recompute for current user/request |
 
 ---
 
 ## 3) Model-by-Model Design
 
 ### Model 1: User Clustering (Taste-Similar Users)
-Your idea:
+Idea:
 - Find users with similar tastes.
 - Recommend from those similar users.
 
-Recommended approach:
+Approach:
 - Use matrix factorization style collaborative filtering (SVD or similar latent factors).
 - Compute user-user similarity in latent space.
 - Candidate source: anime watched/rated by top-N similar users.
 
 Input:
-- user_key
-- watched percentage
-- average rating by type/genre
+- interaction_events
+- user_profile_stats
 
 Output:
 - Candidate anime list from similar users
 - Plus score per candidate (for blending)
+
+Execution mode:
+- Offline batch on full user base (precompute candidate lists/similarity artifacts).
 
 Important filtering rules:
 - Exclude items already watched by target user.
@@ -49,20 +58,24 @@ Important filtering rules:
 ---
 
 ### Model 2: Anime Clustering (Content Similarity)
-Your idea:
+Idea:
 - Find similar anime based on each user's top liked anime and top genre.
 
-Recommended approach:
+Approach:
 - Content-based retrieval with vector similarity.
 - Build anime vectors from genre, type, global rating, popularity, and optional text embeddings.
 - Use cosine similarity or nearest-neighbor search.
 
 Input:
-- User's top rated anime history
-- Anime feature vectors
+- interaction_events
+- anime_content_ohe
+- anime_relative_stats
 
 Output:
 - Similar anime candidates with similarity score
+
+Execution mode:
+- Offline batch on full item catalog (precompute item similarity artifacts).
 
 Best use case:
 - Cold-start users (few ratings)
@@ -71,16 +84,19 @@ Best use case:
 ---
 
 ### Model 3: Predict User Rating for Anime
-Your idea:
+Idea:
 - Predict how much user U will rate anime A.
 
-Recommended approach:
+Approach:
 - Use your Simple feed-forward model.
 - Features can include user embedding, anime embedding, and metadata features.
 - Objective: regression score (predicted rating) or ordinal/binned rating class.
 
 Input:
-- User features + anime features
+- interaction_events
+- user_profile_stats
+- anime_profile_stats
+- anime_content_ohe
 
 Output:
 - Predicted rating score per (U, A)
@@ -91,16 +107,16 @@ Role in ensemble:
 ---
 
 ### Model 4: Predict Next Anime (Sequence Model)
-Your idea:
+Idea:
 - Predict what user will watch next from watch sequence.
 
-Recommended approach:
+Approach:
 - Use your LSTM model as next-item predictor.
 - Input sequence = user's interaction order from user_event_seq (pseudo-order, not real timestamp).
-- Target = next anime_id.
+- Target = next anime_key.
 
 Input:
-- Ordered sequence of anime_key interactions by user_event_seq
+- interaction_events
 
 Output:
 - Probability distribution over anime catalog
@@ -113,14 +129,17 @@ Current data caveat:
 - user_event_seq is generated from source row order, so this is a proxy sequence model.
 - Treat this model as optional/low-weight until real timestamps are available.
 
+Execution mode:
+- Online per-request per-user.
+
 ---
 
-### Model 5: Predict Click / Not Click
+### Model 5: Predict Real-Vote Proxy
 Current practical version with existing data:
 - Predict real-vote probability proxy for user U and anime A.
 - Proxy label: 1 if rating != -1, else 0.
 
-Recommended approach:
+Approach:
 - Binary classifier is usually the simplest and strongest baseline (Logistic Regression, XGBoost, MLP).
 
 Practical decision:
@@ -128,7 +147,10 @@ Practical decision:
 - Replace this with true click modeling later only if impression/click logs are available.
 
 Input:
-- User features, anime features (context features unavailable in current data)
+- interaction_events
+- user_profile_stats
+- anime_profile_stats
+- anime_content_ohe
 
 Output:
 - Proxy probability P(real_vote | U, A)
@@ -144,11 +166,11 @@ Do not score the full catalog with all heavy models each time.
 Recommended two-stage pipeline:
 
 1. Candidate Generation (fast)
-- Use Model 1 + Model 2 + popularity/trending fallback
+- Use precomputed outputs from offline Model 1 + Model 2 + popularity/trending fallback
 - Build candidate pool size, for example 300 to 1000 items
 
 2. Candidate Scoring (heavier)
-- Score candidates using Models 3, 4, 5
+- Score candidates online per request (including Model 4 for current user)
 - Blend all model scores with weights
 
 This reduces latency and cost while preserving quality.
@@ -172,12 +194,14 @@ Recommended default:
 ## 6) Weighting Strategy for Models 1-5
 Final score for user U and anime A:
 
+```text
 FinalScore(U, A) =
   w1 * S_user_cluster(U, A)
 + w2 * S_anime_cluster(U, A)
 + w3 * S_rating_pred(U, A)
 + w4 * S_next_item(U, A)
-+ w5 * S_click_prob(U, A)
++ w5 * S_real_vote_proxy(U, A)
+```
 
 Constraints:
 - w1 + w2 + w3 + w4 + w5 = 1
@@ -185,9 +209,9 @@ Constraints:
 
 Suggested starting weights (business prior):
 - w1 = 0.20
-- w2 = 0.15
-- w3 = 0.25
-- w4 = 0.20
+- w2 = 0.25
+- w3 = 0.30
+- w4 = 0.05
 - w5 = 0.20
 
 How to adjust weights in practice:
@@ -223,7 +247,7 @@ Example reason tags:
 - similar_to_your_favorites
 - high_predicted_rating
 - likely_next_watch
-- high_click_probability
+- high_real_vote_probability
 
 ---
 
@@ -236,7 +260,7 @@ Offline metrics:
 - RMSE or MAE for rating model only
 - AUC/LogLoss for proxy real-vote model
 
-Online metrics (A/B test):
+Online metrics (A/B test, future when product logs are available):
 - CTR
 - Watch-through rate
 - Completion rate
@@ -247,13 +271,13 @@ Online metrics (A/B test):
 
 ## 10) Rollout Plan (No Data Processing Details Yet)
 Phase A:
-- Implement Model 1 + Model 2 + weighted combiner
+- Implement Model 1 + Model 2 as offline full-set batch jobs + weighted combiner
 
 Phase B:
 - Add Model 3 (rating prediction)
 
 Phase C:
-- Add Model 4 (next-anime LSTM on pseudo sequence user_event_seq)
+- Add Model 4 (next-anime LSTM on pseudo sequence user_event_seq) and run online per request/user
 
 Phase D:
 - Add Model 5 proxy model (real-vote binary), compare classifiers
