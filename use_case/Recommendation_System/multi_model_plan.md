@@ -10,8 +10,8 @@ This design matches your idea: no single model is perfect for all users, so we u
 ## 2) High-Level Architecture
 For each request (user U):
 
-1. Load precomputed offline candidates from Model 1 and Model 2.
-2. Score candidate pool using online models for this request.
+1. Load precomputed offline suggestions from Model 1 and Model 2.
+2. Score the suggestion shortlist using online models for this request.
 3. Convert each model output into a comparable score scale.
 4. Apply business-weighted blending.
 5. Apply filtering/business rules and return Top-K recommendations.
@@ -22,7 +22,7 @@ Runtime split (quick view):
 
 | Mode | Models | Notes |
 |---|---|---|
-| Offline full-set batch | Model 1, Model 2 | Precompute reusable artifacts/candidates |
+| Offline full-set batch | Model 1, Model 2 | Precompute reusable artifacts/suggestions |
 | Online per-request per-user | Model 4 (+ additional online scorers) | Recompute for current user/request |
 
 ---
@@ -32,54 +32,71 @@ Runtime split (quick view):
 ### Model 1: User Clustering (Taste-Similar Users)
 Idea:
 - Find users with similar tastes.
-- Recommend from those similar users.
+- Group users by profile behavior features, then retrieve same-cluster users.
 
 Approach:
-- Use matrix factorization style collaborative filtering (SVD or similar latent factors).
-- Compute user-user similarity in latent space.
-- Candidate source: anime watched/rated by top-N similar users.
+- Build user feature matrix from `user_profile_stats` numeric columns.
+- Remove highly correlated features using shared feature selection (`corr_threshold`, default 0.7).
+- Standardize features (z-score) so large-scale columns do not dominate.
+- Run custom NumPy K-means clustering on full user base.
+- Dynamic cluster count equation used by default: `k = round(sqrt(N_users))`, with minimum 2.
+- Online similar-user retrieval = users in the same `cluster_id` as target user.
 
 Input:
-- interaction_events
 - user_profile_stats
 
 Output:
-- Candidate anime list from similar users
-- Plus score per candidate (for blending)
+- `user_cluster_list.parquet` (`user_key`, `cluster_id`, `cluster_size`)
+- `user_cluster_selected_features.parquet` (persisted selected feature list for reruns)
 
 Execution mode:
-- Offline batch on full user base (precompute candidate lists/similarity artifacts).
+- Offline batch on full user base (precompute cluster artifacts).
 
-Important filtering rules:
-- Exclude items already watched by target user.
-- Keep only high-quality candidates using real votes only (rating != -1), then apply rating threshold.
-- Downweight globally over-popular items to reduce boring recommendations.
+Serving behavior (current code path):
+- Similar users are selected from same cluster and returned by `user_key` order (Top-K).
+- Anime recommendation from similar users is handled in shared module:
+  - Exclude target user's watched anime.
+  - Use loved-anime signal (`rating >= love_rating_threshold`, default 8.0).
+  - Keep anime with minimum support users (`min_support_users`, default 2).
+  - Score = `0.65 * support_norm + 0.25 * loved_rating_norm + 0.10 * watch_confidence_norm`.
 
 ---
 
 ### Model 2: Anime Clustering (Content Similarity)
 Idea:
-- Find similar anime based on each user's top liked anime and top genre.
+- Build anime clusters offline, then suggest anime from the same clusters as the user's favorite anime.
 
 Approach:
-- Content-based retrieval with vector similarity.
-- Build anime vectors from genre, type, global rating, popularity, and optional text embeddings.
-- Use cosine similarity or nearest-neighbor search.
+- Build anime vectors from `anime_content_ohe` + `anime_relative_stats`.
+- Add title-series features from anime names (franchise key + sequel index) for series continuity (e.g. Avatar 1/2/3).
+- Remove highly correlated numeric columns (`corr_threshold`, default 0.7).
+- Standardize vectors and run custom NumPy K-means.
+- Save anime cluster assignments.
+- Online retrieval: get user's favorite anime, find their clusters, and suggest unseen anime from those clusters.
 
-Input:
-- interaction_events
+Input (directly used inside `anime_clustering.py`):
 - anime_content_ohe
 - anime_relative_stats
 
+Upstream dependency:
+- interaction_events is not loaded directly in `anime_clustering.py`, but it is used to compute `anime_relative_stats` in data preparation.
+
 Output:
-- Similar anime candidates with similarity score
+- `anime_cluster_list.parquet`
+- `anime_cluster_selected_features.parquet`
+- Online suggestion table from Model 2 (`anime_key`, `model2_score`, `favorite_overlap_count`, `quality_prior`)
 
 Execution mode:
-- Offline batch on full item catalog (precompute item similarity artifacts).
+- Offline batch on full item catalog for cluster artifacts + online per-request same-cluster suggestion.
 
 Best use case:
 - Cold-start users (few ratings)
 - New anime with limited interaction history
+
+Current implementation files:
+- `parallel_models/anime_clustering/anime_clustering.py`
+- `parallel_models/anime_clustering/get_anime_cluster_suggestions.py`
+- `shared/title_language.py`
 
 ---
 
@@ -120,7 +137,7 @@ Input:
 
 Output:
 - Probability distribution over anime catalog
-- Top-N next-anime candidates
+- Top-N next-anime suggestions
 
 Role in ensemble:
 - Captures short-term intent and session-like behavior
@@ -160,17 +177,17 @@ Role in ensemble:
 
 ---
 
-## 4) Candidate Generation + Ranking (Critical Missing Piece)
+## 4) Suggestion Shortlist + Ranking (Critical Missing Piece)
 Do not score the full catalog with all heavy models each time.
 
 Recommended two-stage pipeline:
 
-1. Candidate Generation (fast)
+1. Suggestion Shortlist Build (fast)
 - Use precomputed outputs from offline Model 1 + Model 2 + popularity/trending fallback
-- Build candidate pool size, for example 300 to 1000 items
+- Build shortlist size, for example 300 to 1000 items
 
-2. Candidate Scoring (heavier)
-- Score candidates online per request (including Model 4 for current user)
+2. Suggestion Scoring (heavier)
+- Score shortlist anime online per request (including Model 4 for current user)
 - Blend all model scores with weights
 
 This reduces latency and cost while preserving quality.
@@ -304,11 +321,62 @@ Risk: Score scale mismatch
 
 ## 12) Minimal Pseudo-Flow
 
-1. Generate candidates from Model 1 and Model 2.
-2. Score each candidate with Models 3, 4, 5.
+1. Generate suggestions from Model 1 and Model 2.
+2. Score each suggestion with Models 3, 4, 5.
 3. Normalize each model score to [0, 1].
 4. Compute weighted final score.
 5. Apply business filters and diversity rules.
 6. Return Top-K anime recommendations.
 
 This is the combined version of your idea plus production-ready missing pieces.
+
+---
+
+## 13) Implemented Speed Layer: Shared Processing Cached Parquets
+To reduce online latency for the similar-user recommendation path, add a reusable shared-processing layer that precomputes user-anime signals once and reuses them for requests.
+
+Design principle:
+- Precompute heavy aggregations offline.
+- Keep online path focused on lookup + lightweight scoring.
+
+Saved parquet artifacts (single shared output folder):
+- parallel_model_outputs/user_cluster_list.parquet
+- parallel_model_outputs/user_cluster_selected_features.parquet
+- parallel_model_outputs/anime_cluster_list.parquet
+- parallel_model_outputs/anime_cluster_selected_features.parquet
+- parallel_model_outputs/user_watch_history.parquet
+- parallel_model_outputs/anime_watch_stats.parquet
+- parallel_model_outputs/user_loved_anime.parquet
+
+Implemented reusable modules and entry points:
+- shared/anime_interest.py
+  - prepare_user_anime_signal_parquets(...)
+  - recommend_anime_from_similar_users(...)
+- shared/title_language.py
+  - derive_series_key(...)
+  - build_title_series_matrix(...)
+- parallel_models/anime_clustering/anime_clustering.py
+  - main_run_anime_clustering_to_parquet(...)
+- parallel_models/anime_clustering/get_anime_cluster_suggestions.py
+  - main_get_anime_cluster_suggestions(...)
+- parallel_models/user_clustering/get_similar_user.py
+  - main_prepare_recommendation_signal_parquets(...)
+  - main_recommend_anime_from_similar_user(...)
+
+Online request flow (fast path):
+1. Get top similar users from user_cluster_list.parquet.
+2. Load precomputed shared signal parquets.
+3. Score suggested anime from similar users using support + loved signal + watch confidence.
+4. Return Top-K recommendations.
+
+Why this is important:
+- Reusable across multiple recommendation models under shared.
+- Lower compute and faster response at serving time.
+- Stable artifact contract for offline/online separation.
+
+---
+
+## 14) User Preference Sorting Logic
+The full per-user preference ranking details are moved to a dedicated file for readability:
+
+- anime_interest.md

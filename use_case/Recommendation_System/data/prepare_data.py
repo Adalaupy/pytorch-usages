@@ -12,6 +12,8 @@ GENRE_COL = 'genre'
 EPISODES_COL = 'episodes'
 MEMBERS_COL = 'members'
 ANIME_META_RATING_SOURCE_COL = 'rating'
+ANIME_TITLE_SOURCE_COL = 'name'
+ANIME_TITLE_COL = 'anime_title_raw'
 
 
 def _sanitize_label(label):
@@ -120,11 +122,19 @@ def _compute_user_events(df_rating):
 
 def _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols):
 
-    content = df_anime[[ANIME_KEY_COL, TYPE_COL, GENRE_COL, EPISODES_COL, MEMBERS_COL, ANIME_META_RATING_SOURCE_COL]].copy()
+    content_cols = [ANIME_KEY_COL, TYPE_COL, GENRE_COL, EPISODES_COL, MEMBERS_COL, ANIME_META_RATING_SOURCE_COL]
+    if ANIME_TITLE_SOURCE_COL in df_anime.columns:
+        content_cols.append(ANIME_TITLE_SOURCE_COL)
+
+    content = df_anime[content_cols].copy()
     content[ANIME_KEY_COL] = content[ANIME_KEY_COL].astype(int)
     content['episodes_count'] = pd.to_numeric(content[EPISODES_COL], errors='coerce')
     content['members_count'] = pd.to_numeric(content[MEMBERS_COL], errors='coerce')
     content['anime_meta_rating'] = pd.to_numeric(content[ANIME_META_RATING_SOURCE_COL], errors='coerce')
+    if ANIME_TITLE_SOURCE_COL in content.columns:
+        content[ANIME_TITLE_COL] = content[ANIME_TITLE_SOURCE_COL].fillna('unknown').astype(str)
+    else:
+        content[ANIME_TITLE_COL] = 'unknown'
 
     type_series = content[TYPE_COL].fillna('unknown').astype(str).map(_sanitize_label)
     type_ohe = _series_to_ohe(type_series, 'is_type', type_ref_cols)
@@ -134,7 +144,7 @@ def _compute_anime_content_ohe(df_anime, type_ref_cols, genre_ref_cols):
     genre_ohe = _series_to_ohe(genre_exploded, 'is_genre', genre_ref_cols)
     genre_ohe = genre_ohe.groupby(level=0).max()
 
-    base_cols = [ANIME_KEY_COL, 'episodes_count', 'members_count', 'anime_meta_rating']
+    base_cols = [ANIME_KEY_COL, ANIME_TITLE_COL, 'episodes_count', 'members_count', 'anime_meta_rating']
     return pd.concat([content[base_cols], type_ohe, genre_ohe], axis=1).reset_index(drop=True)
 
 
